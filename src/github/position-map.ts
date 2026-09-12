@@ -26,28 +26,32 @@ export interface ValidatedRange {
 }
 
 /**
- * Builds the map of `path -> Set<new-version line numbers>` that may be
- * commented on: every `add` and `context` line of every hunk (not just
- * additions — a comment can legally anchor on unchanged context too),
+ * Builds the map of `path -> (new-version line number -> hunk index)` that
+ * may be commented on: every `add` and `context` line of every hunk (not
+ * just additions — a comment can legally anchor on unchanged context too),
  * never `del` lines. Binary files contribute nothing (they have no hunks).
+ * The hunk index (rather than just a `Set` of valid lines) is kept so
+ * `validateRange` can detect a range that crosses a hunk boundary — GitHub's
+ * Reviews API requires a multi-line comment's start/end to fall inside the
+ * same hunk.
  */
 export function buildPositionMap (files: readonly DiffFile[]): PositionMap {
-  const map = new Map<string, Set<number>>()
+  const map = new Map<string, Map<number, number>>()
 
   for (const file of files) {
     if (file.binary) continue
     let lines = map.get(file.path)
     if (!lines) {
-      lines = new Set<number>()
+      lines = new Map<number, number>()
       map.set(file.path, lines)
     }
-    for (const hunk of file.hunks) {
+    file.hunks.forEach((hunk, hunkIndex) => {
       for (const line of hunk.lines) {
         if ((line.type === 'add' || line.type === 'context') && line.newLineNumber !== undefined) {
-          lines.add(line.newLineNumber)
+          lines.set(line.newLineNumber, hunkIndex)
         }
       }
-    }
+    })
   }
 
   function isValid (path: string, line: number): boolean {
@@ -56,8 +60,14 @@ export function buildPositionMap (files: readonly DiffFile[]): PositionMap {
 
   function validateRange (path: string, startLine: number, endLine: number): ValidatedRange | null {
     const [lo, hi] = startLine <= endLine ? [startLine, endLine] : [endLine, startLine]
-    if (!isValid(path, hi)) return null
-    if (!isValid(path, lo)) return { startLine: hi, endLine: hi }
+    const lines = map.get(path)
+    const hiHunk = lines?.get(hi)
+    if (hiHunk === undefined) return null
+    const loHunk = lines?.get(lo)
+    // Either boundary invalid, or both valid but in different hunks: GitHub
+    // rejects a multi-line comment whose range spans hunks, so collapse to
+    // a single-line comment anchored at the (already-validated) end.
+    if (loHunk === undefined || loHunk !== hiHunk) return { startLine: hi, endLine: hi }
     return { startLine: lo, endLine: hi }
   }
 

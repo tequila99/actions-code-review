@@ -96,3 +96,44 @@ test('binary files contribute nothing to the position map', () => {
   const map = buildPositionMap([makeFile({ path: 'assets/logo.png', binary: true, hunks: [] })])
   assert.equal(map.isValid('assets/logo.png', 1), false)
 })
+
+test('TAA1: a range whose endpoints fall in two different hunks collapses to endLine (GitHub multi-line comments must stay within one hunk)', () => {
+  const map = buildPositionMap([
+    makeFile({
+      hunks: [
+        {
+          oldStart: 10,
+          oldLines: 4,
+          newStart: 10,
+          newLines: 4,
+          lines: [
+            { type: 'context', content: 'a', oldLineNumber: 10, newLineNumber: 10 },
+            { type: 'add', content: 'new1', newLineNumber: 11 }
+          ]
+        },
+        {
+          oldStart: 50,
+          oldLines: 2,
+          newStart: 50,
+          newLines: 2,
+          lines: [
+            { type: 'context', content: 'c', oldLineNumber: 50, newLineNumber: 50 },
+            { type: 'add', content: 'new2', newLineNumber: 51 }
+          ]
+        }
+      ]
+    })
+  ])
+  // Both 11 and 51 are individually valid, but they belong to different
+  // hunks, so a single review comment cannot span them.
+  assert.equal(map.isValid('src/a.ts', 11), true)
+  assert.equal(map.isValid('src/a.ts', 51), true)
+  const result = map.validateRange('src/a.ts', 11, 51)
+  assert.deepEqual(result, { startLine: 51, endLine: 51 })
+})
+
+test('TAA1b: a range whose endpoints fall in the same hunk still validates as a full range', () => {
+  const map = buildPositionMap([makeFile()])
+  const result = map.validateRange('src/a.ts', 11, 12)
+  assert.deepEqual(result, { startLine: 11, endLine: 12 })
+})
