@@ -7,10 +7,29 @@ import { makeResolvedConfig } from '../helpers/resolved-config.ts'
 import { ProviderError } from '../../src/util/errors.ts'
 import {
   captureStdoutWrites,
+  parseSetOutputCommands,
   buildDiffText,
   prMetadataResponse,
   runEngineWithFakeProvider
 } from './helpers.ts'
+
+/** §8.2 PRD, verbatim (14 outputs) — cross-checked against `MainOutputs` in `src/main.ts`. */
+const PRD_OUTPUT_KEYS = [
+  'review_id',
+  'mode_used',
+  'comments_posted',
+  'files_reviewed',
+  'files_skipped',
+  'skipped_files',
+  'findings_total',
+  'severity_max',
+  'tokens_input',
+  'tokens_output',
+  'cost_estimate_usd',
+  'skipped_reason',
+  'truncated',
+  'findings_filtered'
+]
 
 // T6.16-T6.17: two ways a "successful wiring" run can still need to fail the
 // job — an unreachable provider (T6.16, nothing gets published) vs. a
@@ -65,6 +84,50 @@ test('T6.16: provider unavailable (retries exhausted) -> setFailed with a clear 
     0,
     'the sticky comment is not updated'
   )
+})
+
+// ---------------------------------------------------------------------------
+// Package A (TX3): a provider failure must still leave every §8.2 output set
+// (FR-70) — a consumer's workflow step reading `steps.review.outputs.*` must
+// never see an undefined output just because the job also failed.
+// ---------------------------------------------------------------------------
+
+test('TX3: provider failure -> all 14 §8.2 outputs are still set (FR-70), alongside setFailed', async (t) => {
+  const originalExitCode = process.exitCode
+  t.after(() => {
+    process.exitCode = originalExitCode
+  })
+  const writes = captureStdoutWrites(t)
+
+  const config = makeResolvedConfig()
+  const octokit = createOctokitMock()
+  octokit.rest.pulls.get.mock.mockImplementation(async (params: Record<string, unknown>) => {
+    if (params.mediaType) return { data: buildDiffText(['src/a.ts']) }
+    return prMetadataResponse()
+  })
+  octokit.rest.issues.listComments.mock.mockImplementation(async () => ({ data: [] }))
+  const context = { client: octokit, owner: 'acme', repo: 'widgets', prNumber: 6 }
+
+  t.mock.method(internals, 'loadConfig', async () => ({ config, languageExplicit: true }))
+  t.mock.method(internals, 'createContext', () => context)
+  t.mock.method(
+    internals,
+    'runEngine',
+    runEngineWithFakeProvider(() => {
+      throw new ProviderError('All retries exhausted: upstream provider unreachable (ECONNREFUSED).')
+    })
+  )
+
+  await withEnvAsync({ GITHUB_EVENT_NAME: 'pull_request' }, () => run())
+
+  assert.equal(process.exitCode, 1, 'core.setFailed must set process.exitCode = 1')
+
+  const outputs = parseSetOutputCommands(writes)
+  for (const key of PRD_OUTPUT_KEYS) {
+    assert.ok(key in outputs, `missing output "${key}"`)
+  }
+  assert.equal(Object.keys(outputs).length, PRD_OUTPUT_KEYS.length)
+  assert.equal(outputs.skipped_reason, '', 'a plain ProviderError is not a capability failure')
 })
 
 test('T6.17: fail_on_severity: high + a high finding -> setFailed, but the review IS published first (FR-67)', async (t) => {

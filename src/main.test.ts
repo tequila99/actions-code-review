@@ -8,7 +8,7 @@ import { buildPositionMap } from './github/position-map.ts'
 import { formatReviewEntry, ENTRY_START, ENTRY_END } from './report/format.ts'
 import { buildStickyBody } from './github/sticky-comment.ts'
 import { logger } from './util/logger.ts'
-import { ProviderError } from './util/errors.ts'
+import { CapabilityError, ProviderError } from './util/errors.ts'
 import { registerSecret } from './util/secrets.ts'
 
 // NB: `@actions/core` is a pure ESM package — its named exports are live
@@ -882,9 +882,41 @@ test("TC.9: existing sticky comment with 1 history entry -> after a new run, iss
 })
 
 // ---------------------------------------------------------------------------
-// Package A (TX2): run()'s catch block reports AppError#toUserMessage() (or
-// a redacted plain message for anything else) instead of the raw error.
+// Package A (TX1): run()'s catch block maps a CapabilityError to the
+// dedicated `skipped_reason: 'capability_check_failed'` output (§8.2) and
+// still sets every other output, on top of the AppError message handling
+// TX2 (above) already covers.
 // ---------------------------------------------------------------------------
+
+test('TX1: CapabilityError thrown mid-run -> skipped_reason "capability_check_failed", all outputs still set', async (t) => {
+  const originalExitCode = process.exitCode
+  t.after(() => {
+    process.exitCode = originalExitCode
+  })
+  const writes = captureStdoutWrites(t)
+
+  t.mock.method(internals, 'loadConfig', async () => {
+    throw new CapabilityError(
+      'The configured model does not support tool calling.',
+      'Switch mode to "diff", or pick a tool-calling-capable model.'
+    )
+  })
+
+  await withEnvAsync({ GITHUB_EVENT_NAME: 'pull_request' }, () => run())
+
+  assert.equal(process.exitCode, 1, 'core.setFailed must set process.exitCode = 1')
+  const outputs = parseSetOutputCommands(writes)
+  assert.equal(outputs.skipped_reason, 'capability_check_failed')
+  for (const key of PRD_OUTPUT_KEYS) {
+    assert.ok(key in outputs, `missing output "${key}"`)
+  }
+
+  const allWrites = writes.join('')
+  assert.ok(
+    allWrites.includes('Switch mode to "diff"'),
+    'setFailed message must include the AppError hint'
+  )
+})
 
 test('TX2: ProviderError containing a registered secret -> setFailed message is redacted', async (t) => {
   const originalExitCode = process.exitCode

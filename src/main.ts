@@ -36,7 +36,7 @@ import { estimateTokens } from './provider/token-estimate.ts'
 import { createProviderAdapter } from './provider/factory.ts'
 import { selectEngine } from './engine/selector.ts'
 import { logger } from './util/logger.ts'
-import { AppError } from './util/errors.ts'
+import { AppError, CapabilityError } from './util/errors.ts'
 import { redact } from './util/secrets.ts'
 
 /** §8.2 PRD: the only allowed values of the `skipped_reason` output. */
@@ -417,6 +417,12 @@ export async function publishAndBuildOutputs (input: PublishPhaseInput): Promise
 }
 
 export async function run (): Promise<void> {
+  // Tracks whether the try block already reached a `setAllOutputs()` call
+  // (an early skip exit, or the final publish) before an exception surfaced
+  // to `catch`. Without this, a throw *after* a successful publish (e.g. an
+  // unexpected error while evaluating `fail_on_severity`) would have the
+  // catch block clobber the just-published outputs with early-exit defaults.
+  let outputsSet = false
   try {
     // Дополнение C: captured once at the top of the run so every phase that
     // needs it (only the publish phase, today) sees the same instant this
@@ -453,12 +459,14 @@ export async function run (): Promise<void> {
 
     if (pr.skipReason) {
       setAllOutputs(defaultOutputs(pr.skipReason))
+      outputsSet = true
       return
     }
 
     const diff = await logger.group('diff', () => internals.fetchDiff(context, config, pr))
     if (diff.skippedReason) {
       setAllOutputs(defaultOutputs(diff.skippedReason))
+      outputsSet = true
       return
     }
 
@@ -488,6 +496,7 @@ export async function run (): Promise<void> {
 
     if (modelPhase.skipped) {
       setAllOutputs(defaultOutputs('budget_exceeded'))
+      outputsSet = true
       return
     }
     const engineOutcome = modelPhase.outcome
@@ -508,6 +517,7 @@ export async function run (): Promise<void> {
 
     // FR-67/T5.48: publish first, THEN decide whether to fail the job.
     setAllOutputs(outputs)
+    outputsSet = true
 
     if (shouldFailFromMax(outputs.severity_max as SeverityMax, config.review.fail_on_severity)) {
       core.setFailed(
@@ -515,6 +525,16 @@ export async function run (): Promise<void> {
       )
     }
   } catch (error) {
+    // §8.2: `CapabilityError` gets its own dedicated `skipped_reason` so a
+    // consumer can distinguish "this model can't do agent mode" from every
+    // other failure. `outputsSet` guards against clobbering outputs a
+    // successful phase already published (see the comment at the top of
+    // `run()`).
+    if (!outputsSet) {
+      const reason: SkippedReason = error instanceof CapabilityError ? 'capability_check_failed' : ''
+      setAllOutputs(defaultOutputs(reason))
+    }
+
     // AppError#toUserMessage() already appends the hint and redacts secrets
     // (util/errors.ts); anything else (a bug, a thrown non-Error) still needs
     // redaction before it can safely reach `core.setFailed` (THR-1/THR-2).
