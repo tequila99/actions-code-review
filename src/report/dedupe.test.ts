@@ -51,6 +51,22 @@ test('T5.24b: an existing comment at a different path/line does not suppress the
   assert.equal(result.length, 1)
 })
 
+test('TAA4: a multi-line finding matches an existing comment at endLine (GitHub\'s posted `line` is the range end, not the start)', () => {
+  const result = dedupeFindings(
+    [finding({ line: 10, endLine: 14, message: 'Off by one error here' })],
+    [{ path: 'a.ts', line: 14, body: '**MEDIUM** (correctness): Off by one error here' }]
+  )
+  assert.equal(result.length, 0)
+})
+
+test('TAA4b: a multi-line finding is not suppressed by an existing comment at its startLine', () => {
+  const result = dedupeFindings(
+    [finding({ line: 10, endLine: 14, message: 'Off by one error here' })],
+    [{ path: 'a.ts', line: 10, body: '**MEDIUM** (correctness): Off by one error here' }]
+  )
+  assert.equal(result.length, 1)
+})
+
 test('T5.25: dedup is stable - order preserved, first occurrence kept', () => {
   const first = finding({ message: 'dup', path: 'x.ts', line: 1 })
   const second = finding({ message: 'unique', path: 'x.ts', line: 2 })

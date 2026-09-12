@@ -33,7 +33,10 @@ function dedupeKey (path: string, line: number, message: string): string {
  *   whose body contains the finding's normalized message (T5.24) — an
  *   `includes` check rather than exact equality, since a posted comment
  *   body wraps the raw finding message in extra formatting
- *   (`github/review.ts#formatCommentBody`).
+ *   (`github/review.ts#formatCommentBody`). The comparison uses
+ *   `finding.endLine ?? finding.line`: GitHub's review-comment `line` field
+ *   always names the *end* of a multi-line range, not the start (TAA4), and
+ *   that's exactly what `listExistingReviewComments` hands back here.
  */
 export function dedupeFindings (
   findings: readonly Finding[],
@@ -47,10 +50,11 @@ export function dedupeFindings (
     if (seen.has(key)) continue
 
     const normalizedMessage = normalizeText(finding.message)
+    const anchorLine = finding.endLine ?? finding.line
     const matchesExisting = existingComments.some(
       (comment) =>
         comment.path === finding.path &&
-        comment.line === finding.line &&
+        comment.line === anchorLine &&
         normalizeText(comment.body).includes(normalizedMessage)
     )
     if (matchesExisting) continue
