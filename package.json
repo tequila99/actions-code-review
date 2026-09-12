@@ -1,6 +1,6 @@
 {
   "name": "actions-code-review",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "private": true,
   "description": "Provider-agnostic AI code review for GitHub pull requests. Any OpenAI-compatible endpoint, a token, and a model name.",
   "license": "MIT",
