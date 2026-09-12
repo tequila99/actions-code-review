@@ -147,12 +147,17 @@ export function buildStateBlock (state: StickyCommentState): string {
  *
  * `newEntryMarkdown` is prepended (newest first), the combined list is
  * capped to `maxEntries`, and — only when entries were actually dropped — a
- * truncation note is appended after the entries.
+ * truncation note is appended after the entries, in the given `language`
+ * (defaults to English; `'ru'` gets a Russian translation — this is a
+ * user-facing PR comment, so it follows `review.language`, unlike the
+ * `## AI Code Review — History` heading above it, which stays English on
+ * purpose as a stable marker for humans/parsing).
  */
 export function buildStickyBody (
   existingBody: string | null,
   newEntryMarkdown: string,
-  maxEntries: number = STICKY_HISTORY_MAX_ENTRIES
+  maxEntries: number = STICKY_HISTORY_MAX_ENTRIES,
+  language: string = 'en'
 ): string {
   const entryPattern = new RegExp(`${ENTRY_START}.*?${ENTRY_END}`, 'gs')
   const existingEntries = (existingBody ?? '').match(entryPattern) ?? []
@@ -163,12 +168,18 @@ export function buildStickyBody (
   let body = `${STICKY_MARKER}\n\n## AI Code Review — History\n\n${entries.join('\n\n')}`
 
   if (allEntries.length > maxEntries) {
-    body +=
-      `\n\n_Показаны последние ${maxEntries} прогонов; более старые записи скрыты ` +
-      '(полная история — в комментариях к review на GitHub)._'
+    body += historyTruncationNote(language, maxEntries)
   }
 
   return body
+}
+
+function historyTruncationNote (language: string, maxEntries: number): string {
+  return language === 'ru'
+    ? `\n\n_Показаны последние ${maxEntries} прогонов; более старые записи скрыты ` +
+        '(полная история — в комментариях к review на GitHub)._'
+    : `\n\n_Showing the last ${maxEntries} runs; older entries are hidden ` +
+        '(the full history is in the review comments on GitHub)._'
 }
 
 export interface UpsertStickyCommentParams {
@@ -179,6 +190,8 @@ export interface UpsertStickyCommentParams {
   state: StickyCommentState
   /** §7.3 step 6 / FR-68: state must not be written and no comment published. */
   dryRun: boolean
+  /** `review.language` (defaults to English): controls the history-truncation note's language. */
+  language?: string
 }
 
 export interface UpsertStickyCommentResult {
@@ -209,7 +222,12 @@ export async function upsertStickyComment (
     return { commentId: existing?.id ?? null, created: false }
   }
 
-  const historyBody = buildStickyBody(existing?.body ?? null, params.entryMarkdown)
+  const historyBody = buildStickyBody(
+    existing?.body ?? null,
+    params.entryMarkdown,
+    STICKY_HISTORY_MAX_ENTRIES,
+    params.language ?? 'en'
+  )
   const body = `${historyBody}\n\n${buildStateBlock(params.state)}`
 
   if (existing) {

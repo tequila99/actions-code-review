@@ -284,7 +284,37 @@ test('TC.2: existing body with 1 valid entry -> 2 entries in the result, the new
   assert.ok(newIndex < oldIndex, 'the new entry must come before the old one')
 })
 
-test('TC.3: existing body with exactly STICKY_HISTORY_MAX_ENTRIES entries -> still exactly that many after adding a new one, oldest dropped, truncation note present', () => {
+test('TC.3: existing body with exactly STICKY_HISTORY_MAX_ENTRIES entries -> still exactly that many after adding a new one, oldest dropped, truncation note present (ru)', () => {
+  const existingEntries = Array.from({ length: STICKY_HISTORY_MAX_ENTRIES }, (_, i) =>
+    fakeEntry(`old-${i}`)
+  )
+  const existingBody =
+    `${STICKY_MARKER}\n\n## AI Code Review — History\n\n` + existingEntries.join('\n\n')
+
+  const body = buildStickyBody(existingBody, fakeEntry('new'), STICKY_HISTORY_MAX_ENTRIES, 'ru')
+
+  assert.equal(countEntries(body), STICKY_HISTORY_MAX_ENTRIES)
+  assert.ok(body.includes('Review #new'))
+  // The very last (oldest) of the original entries must have been dropped.
+  assert.ok(!body.includes(`Review #old-${STICKY_HISTORY_MAX_ENTRIES - 1}`))
+  assert.ok(body.includes('Review #old-0'))
+  assert.match(body, /Показаны последние 20 прогонов/)
+})
+
+test('TAB4: truncation note in a non-ru language is English, no Cyrillic', () => {
+  const existingEntries = Array.from({ length: STICKY_HISTORY_MAX_ENTRIES }, (_, i) =>
+    fakeEntry(`old-${i}`)
+  )
+  const existingBody =
+    `${STICKY_MARKER}\n\n## AI Code Review — History\n\n` + existingEntries.join('\n\n')
+
+  const body = buildStickyBody(existingBody, fakeEntry('new'), STICKY_HISTORY_MAX_ENTRIES, 'en')
+
+  assert.match(body, /Showing the last 20 runs/)
+  assert.doesNotMatch(body, /[а-яё]/i)
+})
+
+test('TAB5: truncation note defaults to English when language is omitted', () => {
   const existingEntries = Array.from({ length: STICKY_HISTORY_MAX_ENTRIES }, (_, i) =>
     fakeEntry(`old-${i}`)
   )
@@ -293,12 +323,10 @@ test('TC.3: existing body with exactly STICKY_HISTORY_MAX_ENTRIES entries -> sti
 
   const body = buildStickyBody(existingBody, fakeEntry('new'))
 
-  assert.equal(countEntries(body), STICKY_HISTORY_MAX_ENTRIES)
-  assert.ok(body.includes('Review #new'))
-  // The very last (oldest) of the original entries must have been dropped.
-  assert.ok(!body.includes(`Review #old-${STICKY_HISTORY_MAX_ENTRIES - 1}`))
-  assert.ok(body.includes('Review #old-0'))
-  assert.match(body, /Показаны последние 20 прогонов/)
+  assert.match(body, /Showing the last 20 runs/)
+  // The "AI Code Review — History" header is a stable, unparsed English
+  // marker regardless of language (never translated).
+  assert.match(body, /## AI Code Review — History/)
 })
 
 test('TC.4: existing body without a single entry marker (old flat format) -> treated as 0 entries, result has exactly 1 (the new one)', () => {
