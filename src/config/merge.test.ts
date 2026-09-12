@@ -254,6 +254,37 @@ test('TV.3: agent_filter_model set only in the file is honored when the input is
 })
 
 // ---------------------------------------------------------------------------
+// TZ: api_flavor "gemini" is rejected at config-merge time, not left to
+// surface only once the provider adapter is constructed (stage 9b, FR-28).
+// `provider/factory.ts`'s own `case 'gemini'` stays as defense in depth for
+// a ResolvedConfig built any other way, but a user setting api_flavor:
+// gemini should see the error as early as possible.
+// ---------------------------------------------------------------------------
+
+test('TZ.1: api_flavor "gemini" (input) is rejected by mergeConfig itself', () => {
+  assert.throws(
+    () => mergeConfig(baseInputs({ api_flavor: 'gemini' }), baseFile()),
+    (thrown: unknown) => {
+      const err = asConfigError(thrown)
+      assert.match(err.message, /gemini/i)
+      assert.match(err.message, /not supported yet/i)
+      return true
+    }
+  )
+})
+
+test('TZ.2: api_flavor "gemini" set only in the file is also rejected by mergeConfig', () => {
+  assert.throws(
+    () => mergeConfig(baseInputs(), baseFile({ api: { flavor: 'gemini' } })),
+    (thrown: unknown) => {
+      const err = asConfigError(thrown)
+      assert.match(err.message, /gemini/i)
+      return true
+    }
+  )
+})
+
+// ---------------------------------------------------------------------------
 // Дополнение B: isLanguageExplicit (PR-title language auto-detect).
 // ---------------------------------------------------------------------------
 
