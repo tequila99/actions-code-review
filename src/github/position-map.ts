@@ -1,7 +1,7 @@
 import type { DiffFile } from './diff-parse.ts'
 
 /**
- * PRD §7.5, layer 1 of the 3-layer position-validation defense: GitHub's
+ * Layer 1 of the 3-layer position-validation defense: GitHub's
  * Reviews API rejects the **entire** review with a 422 if a single inline
  * comment points at a line outside the diff. `PositionMap` is the single
  * source of truth for "can we legally comment on (path, line)".
@@ -13,7 +13,7 @@ export interface PositionMap {
    * Validates a multi-line comment range. `endLine` (the GitHub `line`
    * field) is the anchor: if it is invalid there is nothing to comment on
    * and `null` is returned. If `endLine` is valid but `startLine` is not,
-   * the range collapses to a single line at `endLine` (PRD §7.5). If
+   * the range collapses to a single line at `endLine`. If
    * `endLine < startLine` the pair is normalized (swapped) first, so an
    * inverted range never throws.
    */

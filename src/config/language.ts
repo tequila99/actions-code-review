@@ -1,8 +1,8 @@
 /**
- * Дополнение B (пост-v0.1): автоопределение `review.language` по заголовку
- * PR, когда язык нигде не задан явно (ни `language` input, ни
- * `review.language` в `.github/code-review.yml`). Only `en`/`ru` are
- * distinguished for now (PRD FR-37, пересмотренный).
+ * Post-v0.1 addition: auto-detects `review.language` from the PR title when
+ * the language isn't set explicitly anywhere (neither the `language` input
+ * nor `review.language` in `.github/code-review.yml`). Only `en`/`ru` are
+ * distinguished for now (FR-37, revised from its original scope).
  */
 
 const CYRILLIC_LETTER_PATTERN = /[а-яё]/gi

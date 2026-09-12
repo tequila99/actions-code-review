@@ -1,15 +1,15 @@
 /**
- * Provider-agnostic contract (PRD §7.2, verbatim field names). Every review
- * engine (stage 4+) talks to a `ProviderAdapter` only — it knows nothing
- * about OpenAI/Anthropic/Gemini specifics, and a `ProviderAdapter` knows
- * nothing about review/diff concerns. See CHANGELOG.md "Этап 3" for the
+ * Provider-agnostic contract (verbatim field names). Every review engine
+ * (stage 4+) talks to a `ProviderAdapter` only — it knows nothing about
+ * OpenAI/Anthropic/Gemini specifics, and a `ProviderAdapter` knows nothing
+ * about review/diff concerns. See `openai-compatible.ts` for the
  * call-layering rationale (structured-output.ts -> retry.ts ->
  * openai-compatible.ts).
  */
 
 /** A conservative JSON-Schema-like object. See `structured-output.ts` for
- * the allowlist actually sent to providers (PRD §11.4: no `oneOf`/`allOf`/
- * `$ref`/`pattern`). */
+ * the allowlist actually sent to providers (no `oneOf`/`allOf`/`$ref`/
+ * `pattern`). */
 export type JsonSchema = Record<string, unknown>
 
 export type ChatRole = 'user' | 'assistant' | 'tool'

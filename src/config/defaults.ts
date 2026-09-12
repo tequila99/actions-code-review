@@ -1,8 +1,8 @@
 /**
- * Default `filters.exclude` glob list (PRD §9.2): lock files, minified
- * assets, source maps, generated/vendor directories, binary/image formats
- * and snapshot files. Always merged in ahead of the file config's and the
- * input's own `exclude` entries (merge.ts) — never replaced.
+ * Default `filters.exclude` glob list: lock files, minified assets, source
+ * maps, generated/vendor directories, binary/image formats and snapshot
+ * files. Always merged in ahead of the file config's and the input's own
+ * `exclude` entries (merge.ts) — never replaced.
  */
 export const DEFAULT_EXCLUDE: readonly string[] = [
   '**/package-lock.json',
@@ -39,11 +39,11 @@ export const DEFAULT_EXCLUDE: readonly string[] = [
 
 /**
  * Default config file path, relative to the workspace root (`config_path`
- * input default, PRD §8.1).
+ * input default).
  */
 export const DEFAULT_CONFIG_PATH = '.github/code-review.yml'
 
-/** Scalar defaults (PRD §8.1 for input defaults, §9 example for file-only fields). */
+/** Scalar defaults for action inputs and file-only fields. */
 export const DEFAULTS = {
   version: 1,
   mode: 'diff',
@@ -79,8 +79,8 @@ export const DEFAULTS = {
   max_context_bytes: 60000
 } as const
 
-/** Дополнение E: hard length cap on `review.custom_instructions`, applied post-merge
- * (`merge.ts`) — keeps the system prompt from growing unboundedly on a careless/malicious
- * value. Not a `DEFAULTS` entry: it bounds every source (input and file), it isn't itself
- * a fallback value. */
+/** Hard length cap on `review.custom_instructions`, applied post-merge (`merge.ts`) — keeps
+ * the system prompt from growing unboundedly on a careless/malicious value. Not a
+ * `DEFAULTS` entry: it bounds every source (input and file), it isn't itself a fallback
+ * value. */
 export const CUSTOM_INSTRUCTIONS_MAX_LENGTH = 4000

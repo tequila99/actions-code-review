@@ -6,16 +6,16 @@
  * plain string rather than touching `@actions/core` itself, so it stays a
  * pure function that's trivial to test).
  *
- * Дополнение C: the sticky PR comment now accumulates a capped history of
- * run entries instead of being fully overwritten every run. This module
- * only builds the markdown for a *single* entry, already wrapped in its own
+ * The sticky PR comment accumulates a capped history of run entries instead
+ * of being fully overwritten every run. This module only builds the
+ * markdown for a *single* entry, already wrapped in its own
  * `ENTRY_START`/`ENTRY_END` delimiters; everything about the top-level
  * `STICKY_MARKER`, concatenating entries into history, capping to
  * `STICKY_HISTORY_MAX_ENTRIES`, and the machine-readable state block lives
  * entirely in `github/sticky-comment.ts` (`buildStickyBody`). This module
  * intentionally does NOT import from `github/sticky-comment.ts` (that
- * import ran the other way before Дополнение C) — it has no knowledge of
- * history/top-level-marker concerns at all.
+ * import used to run the other way, before this history feature existed) —
+ * it has no knowledge of history/top-level-marker concerns at all.
  */
 
 import type { SkippedFile } from '../github/diff-parse.ts'
@@ -29,7 +29,7 @@ export function escapeMarkdown (text: string): string {
 
 /**
  * Delimiters wrapping a single history entry inside the sticky comment
- * body (Дополнение C). Neither string contains regex metacharacters, so
+ * body. Neither string contains regex metacharacters, so
  * `github/sticky-comment.ts` can embed them directly into a `RegExp`
  * without escaping.
  */
@@ -51,13 +51,13 @@ export interface FormatSummaryParams {
   costEstimateUsd: string
   filesReviewed: number
   severityMax: SeverityMax
-  /** Дополнение G (FR-53): findings dropped by the noise-filter pass (0 unless `mode: agent`
+  /** FR-53: findings dropped by the noise-filter pass (0 unless `mode: agent`
    * ran with `agent.filter_model` configured). */
   findingsFiltered: number
 }
 
 /**
- * Params for a single history entry (Дополнение C): everything
+ * Params for a single history entry: everything
  * `FormatSummaryParams` already had, plus the identity of this particular
  * run — the GitHub review id (`null` under dry_run/when publishing failed
  * to produce one) and the ISO timestamp the run started at.
@@ -73,7 +73,7 @@ function findingLine (finding: Finding): string {
       ? `${finding.line}-${finding.endLine}`
       : `${finding.line}`
   const base = `- \`${escapeMarkdown(finding.path)}:${range}\` **${finding.severity}** — ${escapeMarkdown(finding.message)}`
-  // finding.suggestion is literal code (Дополнение D) — deliberately not run through
+  // finding.suggestion is literal code (FR-51) — deliberately not run through
   // escapeMarkdown, which collapses newlines and would corrupt a multi-line replacement.
   if (finding.suggestion === undefined) return base
   const indented = finding.suggestion
@@ -84,8 +84,8 @@ function findingLine (finding: Finding): string {
 }
 
 /**
- * Builds the markdown for a single sticky-comment history entry (Дополнение
- * C), already wrapped in `ENTRY_START`/`ENTRY_END` delimiters. The header
+ * Builds the markdown for a single sticky-comment history entry, already
+ * wrapped in `ENTRY_START`/`ENTRY_END` delimiters. The header
  * is `### Review #<reviewId> — <startedAt>`; `reviewId: null` (dry_run, or
  * publish didn't produce one) renders as `### Review #— — <startedAt>` (an
  * em dash placeholder, documented here as the single source of truth for
@@ -111,7 +111,7 @@ export function formatReviewEntry (params: FormatReviewEntryParams): string {
     `- **Estimated cost (USD):** ${params.costEstimateUsd || 'n/a'}`
   )
 
-  // Дополнение G: only shown when the noise filter actually dropped something — most runs
+  // Only shown when the noise filter actually dropped something — most runs
   // don't have `agent.filter_model` configured at all, so an always-"0" line would just be noise.
   if (params.findingsFiltered > 0) {
     lines.push(`- **Findings filtered (noise):** ${params.findingsFiltered}`)

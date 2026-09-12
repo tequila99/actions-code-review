@@ -3,10 +3,9 @@
  * `repos.compareCommits` with `mediaType: {format: 'diff'}`, and for a single
  * file's `patch` field from `pulls.listFiles` (via `parseHunks`).
  *
- * Q-2 (PRD §6, IMPLEMENTATION_PLAN.md Этап 2): a hand-written parser was
- * chosen over the `parse-diff` npm package. All edge cases in T2.10-T2.23
- * pass and the implementation stays close to the ~200 line budget the plan
- * sets as the deciding threshold — see CHANGELOG.md for the full rationale.
+ * Q-2: a hand-written parser was chosen over the `parse-diff` npm package.
+ * All edge cases in T2.10-T2.23 pass and the implementation stays close to
+ * the ~200 line budget that was set as the deciding threshold.
  */
 
 export type DiffLineType = 'add' | 'del' | 'context'

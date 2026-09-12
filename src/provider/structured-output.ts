@@ -69,8 +69,8 @@ export function swappedMaxOutputTokensParam (
 
 /**
  * Owns the entire FR-21/FR-21a degradation ladder and the FR-34 tolerant
- * JSON parser — this is the ONLY module that interprets an HTTP 400 (§7.1
- * PRD). `retry.ts`, one layer below, never looks at 400 at all.
+ * JSON parser — this is the ONLY module that interprets an HTTP 400.
+ * `retry.ts`, one layer below, never looks at 400 at all.
  *
  * Ladder, in order, each triggered by a fresh 400 whose body mentions the
  * relevant thing:
@@ -245,7 +245,7 @@ const ALLOWED_SCHEMA_KEYS = new Set([
 
 /**
  * Strips a `responseSchema` down to the conservative subset every
- * self-hosted/gateway platform is expected to understand (§11.4 PRD): only
+ * self-hosted/gateway platform is expected to understand: only
  * `type`/`properties`/`required`/`items`/`enum`/`description`, recursively.
  * In particular this guarantees `oneOf`/`allOf`/`$ref`/`pattern` (and
  * anything else) never reach the provider (T3.42).

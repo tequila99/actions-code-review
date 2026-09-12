@@ -3,7 +3,7 @@ import * as core from '@actions/core'
 /**
  * Values shorter than this are ignored by `registerSecret`: masking a
  * short/common substring (e.g. a 1-3 char value) would corrupt unrelated
- * log output (PRD §10.3).
+ * log output.
  */
 const MIN_SECRET_LENGTH = 4
 

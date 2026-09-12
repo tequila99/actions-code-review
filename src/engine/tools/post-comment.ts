@@ -7,14 +7,14 @@
  * tool-loop from accumulating without bound — final truncation to
  * `max_comments` itself still happens at the publish layer, by severity.
  *
- * Дополнение D (FR-51): optionally accepts a literal `original_snippet`/
- * `suggestion` pair. Unlike `DiffEngine` (FR-69, permanently removed —
- * truncated diff hunks can't guarantee a syntactically correct literal
- * replacement), `AgentEngine` can `read_file` the whole file, so the handler
- * re-reads lines `[line, end_line ?? line]` from disk and only keeps
- * `suggestion` when `original_snippet` matches byte-for-byte — the same
- * verification this feature lacked the first time it existed (see
- * TODO.md, "`suggestion`: убрано полностью").
+ * FR-51: optionally accepts a literal `original_snippet`/`suggestion` pair.
+ * Unlike `DiffEngine` (FR-69, permanently removed — truncated diff hunks
+ * can't guarantee a syntactically correct literal replacement), `AgentEngine`
+ * can `read_file` the whole file, so the handler re-reads lines `[line,
+ * end_line ?? line]` from disk and only keeps `suggestion` when
+ * `original_snippet` matches byte-for-byte — the verification this feature
+ * lacked the first time it existed, before it was dropped entirely and
+ * later reintroduced with this check.
  */
 
 import { readFile as fsReadFile } from 'node:fs/promises'

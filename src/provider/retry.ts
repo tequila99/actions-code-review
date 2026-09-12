@@ -6,13 +6,14 @@ import { ProviderError } from '../util/errors.ts'
  * parsed `Retry-After` header and a redacted/truncated body snippet) so
  * `withRetry` can classify retryability and `structured-output.ts` (the
  * layer above) can inspect the body to decide on a degradation step —
- * `retry.ts` itself never looks at `bodyText`, only at `status` (§7.1 PRD:
- * "retry.ts ретраит 408/429/5xx/сеть; 400 НЕ ретраит, пробрасывает вверх").
+ * `retry.ts` itself never looks at `bodyText`, only at `status`: it retries
+ * 408/429/5xx/network errors, but a 400 is never retried and is thrown
+ * straight up to the caller.
  *
  * Extends `ProviderError` rather than a bespoke class per the stage-3 brief
- * ("используй `ProviderError`, не создавай новый класс, если он подходит")
- * — every error this module and `openai-compatible.ts` throw ends up an
- * `instanceof ProviderError` all the way up to the caller.
+ * (use `ProviderError`, don't create a new error class when it already
+ * fits) — every error this module and `openai-compatible.ts` throw ends up
+ * an `instanceof ProviderError` all the way up to the caller.
  */
 export class HttpStatusError extends ProviderError {
   readonly status: number

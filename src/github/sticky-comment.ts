@@ -10,9 +10,9 @@ import { ENTRY_START, ENTRY_END } from '../report/format.ts'
 export const STICKY_MARKER = '<!-- actions-code-review:summary -->'
 
 /**
- * Дополнение C: how many of the most recent run entries the sticky comment
- * keeps (newest first). Older entries are dropped, with a note appended
- * about the truncation.
+ * How many of the most recent run entries the sticky comment keeps (newest
+ * first). Older entries are dropped, with a note appended about the
+ * truncation.
  */
 export const STICKY_HISTORY_MAX_ENTRIES = 20
 
@@ -197,15 +197,14 @@ function trimEntryToBudget (entry: string, budget: number, language: string): st
 
 /**
  * Builds the full sticky-comment body as a capped, newest-first history of
- * run entries (Дополнение C), replacing the old "fully overwritten every
- * run" behaviour.
+ * run entries, replacing the old "fully overwritten every run" behaviour.
  *
  * `existingBody` is scanned for `ENTRY_START...ENTRY_END` blocks (non-greedy,
  * multiline). Anything that doesn't parse as well-formed entries — `null`,
- * empty, the old pre-Дополнение-C flat format (no entry delimiters at all),
- * or a corrupted/unclosed entry marker — is treated as zero existing
- * entries rather than thrown on, so this stays backward-compatible with
- * comments written before this feature existed.
+ * empty, the old flat format that predates this history feature (no entry
+ * delimiters at all), or a corrupted/unclosed entry marker — is treated as
+ * zero existing entries rather than thrown on, so this stays
+ * backward-compatible with comments written before this feature existed.
  *
  * `newEntryMarkdown` is prepended (newest first), the combined list is
  * capped to `maxEntries`, and — only when entries were actually dropped — a
@@ -286,8 +285,8 @@ export interface UpsertStickyCommentResult {
 }
 
 /**
- * Creates or updates the action's sticky summary comment (FR-63/FR-64,
- * Дополнение C). The body is `buildStickyBody(existing body, entryMarkdown,
+ * Creates or updates the action's sticky summary comment (FR-63/FR-64).
+ * The body is `buildStickyBody(existing body, entryMarkdown,
  * ..., buildStateBlock(state))` — the new entry prepended onto the capped
  * run history, trimmed to `GITHUB_COMMENT_MAX_CHARS` if needed (#8), with
  * the machine-readable state block appended last and always preserved.

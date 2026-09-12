@@ -7,7 +7,7 @@
  *    meaning "any TypeScript file", not "a TypeScript file sitting at the repository root" —
  *    `minimatch`'s `*` never crosses a `/`, so in that trace `grep(..., glob: "*.{ts,vue}")`
  *    returned "(no matches)" against a repo of almost nothing but `.ts`/`.vue` files. The model
- *    called the result "странно" in its own reasoning and fell back to reading files one at a
+ *    called the result "weird" in its own reasoning and fell back to reading files one at a
  *    time, which is what eventually exhausted its tool-call budget. Every agentic file-search
  *    tool models are trained against reads a bare `*.ts` the basename way.
  * 2. `dot: true`, so a glob can reach into dot-directories: `.github/workflows/*.yaml` is

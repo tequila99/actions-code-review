@@ -46,7 +46,7 @@ function isPureDeletion (lines: readonly DiffLine[]): boolean {
  * is kept — everything else is collapsed into a single "N lines omitted"
  * marker so large hunks don't blow up the prompt. A hunk that is purely
  * deletions is rendered as a compact one-line summary instead of dumping
- * every removed line (`handle_patch_deletions`, PRD §7.4/T2.34).
+ * every removed line (`handle_patch_deletions`, T2.34).
  */
 export function renderHunk (hunk: DiffHunk, contextLines = 3): string {
   const header = `@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@`

@@ -1,5 +1,5 @@
 /**
- * Дополнение G (FR-53): noise filtering via a cheap second model, `mode:
+ * FR-53: noise filtering via a cheap second model, `mode:
  * agent` only. After the tool loop ends, the collected findings are shown
  * to `ctx.filterProvider` (same provider/api_key/base_url as the main
  * review, a different — cheaper — `model`, see `provider/factory.ts`) and

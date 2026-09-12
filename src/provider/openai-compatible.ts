@@ -211,7 +211,7 @@ function translateResponse (data: unknown, req: CompletionRequest): CompletionRe
   ) {
     throw new ProviderError(
       'The model returned what looks like a tool call as plain text in `content` instead of using `tool_calls`.',
-      'If this is vLLM, restart the server with `--enable-auto-tool-choice --tool-call-parser <parser>` matching the model (see PRD §11.4).'
+      'If this is vLLM, restart the server with `--enable-auto-tool-choice --tool-call-parser <parser>` matching the model.'
     )
   }
 
@@ -251,8 +251,10 @@ function translateResponse (data: unknown, req: CompletionRequest): CompletionRe
  * covering vLLM/Ollama/OpenRouter/any gateway speaking the same wire
  * format. `complete()` composes `structured-output.ts` (degradation ladder,
  * owns 400 handling) over `retry.ts` (408/429/5xx/network retries) over a
- * single `fetch` call per attempt — see CHANGELOG.md "Этап 3" for why this
- * nesting lives inside the adapter rather than in `factory.ts`.
+ * single `fetch` call per attempt — this nesting lives inside the adapter
+ * rather than in `factory.ts` so each flavor can compose retry/degradation
+ * layers around its own transport instead of `factory.ts` having to know
+ * about both.
  */
 export class OpenAICompatibleAdapter implements ProviderAdapter {
   readonly flavor = 'openai' as const

@@ -117,7 +117,7 @@ export class DiffEngine implements ReviewEngine {
     let everyCallHadCost = true
 
     // T8.6 (THR-8/R-13): the same hard cost cutoff as `AgentEngine`'s, applied between batches —
-    // `budget.max_cost_usd` is "independent of mode" (PRD §12.5). Estimate-based only; see `cost.ts`.
+    // `budget.max_cost_usd` applies regardless of engine mode. Estimate-based only; see `cost.ts`.
     const budgetPricing = toPricing(config.budget.pricing)
     const budgetTrackable = isBudgetTrackable(config.budget.max_cost_usd, budgetPricing, (m) =>
       logger.warning(m)

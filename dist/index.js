@@ -47134,8 +47134,8 @@ var resolvedConfigSchema = external_exports.object({
       enabled: external_exports.boolean(),
       max_calls: external_exports.number().int().positive()
     }),
-    /** Дополнение G: `''` (default) disables the noise-filter pass entirely — opt-in,
-     * mirrors `web_search`'s off-by-default posture. See `engine/noise-filter.ts`. */
+    /** `''` (default) disables the noise-filter pass entirely — opt-in, mirrors
+     * `web_search`'s off-by-default posture. See `engine/noise-filter.ts`. */
     filter_model: external_exports.string()
   }),
   budget: external_exports.object({
@@ -47323,10 +47323,10 @@ function mergeConfig(inputs, file2) {
       ),
       focus: file2.review?.focus ?? [],
       ignore: file2.review?.ignore ?? [],
-      // File-only (PRD §9.1): not expressible as an action input.
+      // File-only: not expressible as an action input.
       path_instructions: file2.review?.path_instructions ?? []
     },
-    // File-only (PRD §9.1).
+    // File-only: not expressible as an action input.
     context: {
       always: file2.context?.always ?? [],
       layers: file2.context?.layers ?? [],
@@ -47354,7 +47354,7 @@ function mergeConfig(inputs, file2) {
         file2.agent?.allow_suggestions,
         DEFAULTS2.agent_allow_suggestions
       ),
-      // File-only (PRD §9.1).
+      // File-only: not expressible as an action input.
       tools: file2.agent?.tools ?? [],
       web_search: {
         enabled: pickScalar(
@@ -47374,7 +47374,7 @@ function mergeConfig(inputs, file2) {
         DEFAULTS2.agent_filter_model
       )
     },
-    // File-only (PRD §9.1).
+    // File-only: not expressible as an action input.
     budget: {
       ...file2.budget?.max_cost_usd !== void 0 ? { max_cost_usd: file2.budget.max_cost_usd } : {},
       ...file2.budget?.pricing !== void 0 ? { pricing: file2.budget.pricing } : {}
@@ -50452,7 +50452,7 @@ function translateResponse2(data, req) {
   if (req.tools && req.tools.length > 0 && toolCalls.length === 0 && content && looksLikeToolCallJson(content)) {
     throw new ProviderError(
       "The model returned what looks like a tool call as plain text in `content` instead of using `tool_calls`.",
-      "If this is vLLM, restart the server with `--enable-auto-tool-choice --tool-call-parser <parser>` matching the model (see PRD \xA711.4)."
+      "If this is vLLM, restart the server with `--enable-auto-tool-choice --tool-call-parser <parser>` matching the model."
     );
   }
   const finishReason = typeof first.finish_reason === "string" ? first.finish_reason : "unknown";

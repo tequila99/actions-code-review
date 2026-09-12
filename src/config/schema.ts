@@ -79,8 +79,8 @@ export const pricingSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// `.github/code-review.yml` schema (PRD §9) — every field optional, the
-// file is allowed to be empty/absent (T1.2, T1.26, T1.29, T1.30).
+// `.github/code-review.yml` schema — every field optional, the file is
+// allowed to be empty/absent (T1.2, T1.26, T1.29, T1.30).
 // ---------------------------------------------------------------------------
 
 export const SUPPORTED_CONFIG_VERSIONS = [1] as const
@@ -201,8 +201,8 @@ export function parseFileConfig (raw: unknown): FileConfig {
 
 // ---------------------------------------------------------------------------
 // Resolved config schema — the shape produced by config/merge.ts after
-// applying inputs > file > defaults (PRD §9.1). All ambient defaults have
-// already been filled in by the time this runs, so most fields are required.
+// applying inputs > file > defaults. All ambient defaults have already been
+// filled in by the time this runs, so most fields are required.
 // ---------------------------------------------------------------------------
 
 export const resolvedConfigSchema = z.object({
@@ -259,8 +259,8 @@ export const resolvedConfigSchema = z.object({
       enabled: z.boolean(),
       max_calls: z.number().int().positive()
     }),
-    /** Дополнение G: `''` (default) disables the noise-filter pass entirely — opt-in,
-     * mirrors `web_search`'s off-by-default posture. See `engine/noise-filter.ts`. */
+    /** `''` (default) disables the noise-filter pass entirely — opt-in, mirrors
+     * `web_search`'s off-by-default posture. See `engine/noise-filter.ts`. */
     filter_model: z.string()
   }),
   budget: z.object({

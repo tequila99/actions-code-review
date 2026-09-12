@@ -7,7 +7,7 @@ import { logger } from '../util/logger.ts'
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
 
 /**
- * Scalar merge rule (PRD §9.1): input wins, then file, then default. An
+ * Scalar merge rule: input wins, then file, then default. An
  * `undefined` input (never an empty string — `inputs.ts` already treats
  * `''` as "not provided") falls through to the file value, then to the
  * default.
@@ -30,8 +30,8 @@ function tryGetHostname (url: string): string | null {
   }
 }
 
-/** Дополнение E (FR-10b): same priority as every other `review.*` scalar (FR-6), plus a hard
- * length cap so a careless/malicious value can't grow the system prompt unboundedly. */
+/** Same priority as every other `review.*` scalar (FR-6/FR-10b), plus a hard length cap
+ * so a careless/malicious value can't grow the system prompt unboundedly. */
 function resolveCustomInstructions (
   inputValue: string | undefined,
   fileValue: string | undefined
@@ -101,8 +101,8 @@ function warnIfWebSearchRequiresOpenRouter (enabled: boolean, baseUrl: string): 
 
 /**
  * Merges action inputs, `.github/code-review.yml`, and defaults into a
- * single validated `ResolvedConfig` (FR-6, PRD §9.1). Throws `ConfigError`
- * on an invalid merged result, including the post-merge FR-10a check.
+ * single validated `ResolvedConfig` (FR-6). Throws `ConfigError` on an
+ * invalid merged result, including the post-merge FR-10a check.
  */
 export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfig {
   const exclude = Array.from(
@@ -194,10 +194,10 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
       ),
       focus: file.review?.focus ?? [],
       ignore: file.review?.ignore ?? [],
-      // File-only (PRD §9.1): not expressible as an action input.
+      // File-only: not expressible as an action input.
       path_instructions: file.review?.path_instructions ?? []
     },
-    // File-only (PRD §9.1).
+    // File-only: not expressible as an action input.
     context: {
       always: file.context?.always ?? [],
       layers: file.context?.layers ?? [],
@@ -225,7 +225,7 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
         file.agent?.allow_suggestions,
         DEFAULTS.agent_allow_suggestions
       ),
-      // File-only (PRD §9.1).
+      // File-only: not expressible as an action input.
       tools: file.agent?.tools ?? [],
       web_search: {
         enabled: pickScalar(
@@ -245,7 +245,7 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
         DEFAULTS.agent_filter_model
       )
     },
-    // File-only (PRD §9.1).
+    // File-only: not expressible as an action input.
     budget: {
       ...(file.budget?.max_cost_usd !== undefined
         ? { max_cost_usd: file.budget.max_cost_usd }
@@ -282,7 +282,7 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
 }
 
 /**
- * Дополнение B: whether `review.language` was set explicitly (input or
+ * Whether `review.language` was set explicitly (input or
  * `.github/code-review.yml`), as opposed to falling through to
  * `DEFAULTS.language`. `mergeConfig()` itself is unchanged — this is a
  * separate, read-only check over the same two sources so `main.ts` can

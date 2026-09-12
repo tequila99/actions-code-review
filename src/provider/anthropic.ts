@@ -1,14 +1,13 @@
 /**
  * `flavor: 'anthropic'` implementation of `ProviderAdapter` — native
- * Anthropic Messages API client (FR-27, PRD §11.2), covering the first-party
+ * Anthropic Messages API client (FR-27), covering the first-party
  * `api.anthropic.com` endpoint. Unlike `openai-compatible.ts`, this adapter
  * does not go through `structured-output.ts`'s degradation ladder: Anthropic
  * has one native structured-output mechanism (`output_config`, T9.6), no
  * fallback rungs to climb, so `complete()` is a single `withRetry`-wrapped
  * attempt.
  *
- * Deliberately NOT sent, per PRD §11.2 ("Особенности, которые учитывает
- * адаптер anthropic.ts"):
+ * Deliberately NOT sent — Anthropic-specific quirks this adapter accounts for:
  *   - `temperature`/`top_p`/`top_k` — rejected with 400 on the Opus 5 /
  *     Sonnet 5 / Opus 4.8/4.7 line (T9.9);
  *   - `thinking`/`budget_tokens` in any shape — no FR exposes a thinking-
@@ -147,7 +146,7 @@ function toWireTool (tool: ToolSpec): Record<string, unknown> {
 }
 
 /**
- * Prompt caching (#11, PRD §11.2): three fixed breakpoints keep the frozen
+ * Prompt caching (#11): three fixed breakpoints keep the frozen
  * prefix (system + tool definitions) and, from the second turn on, the
  * growing tool-result history off the metered-price path on every repeat
  * request within an `AgentEngine` loop:

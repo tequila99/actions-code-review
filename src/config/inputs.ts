@@ -10,7 +10,7 @@ import { DEFAULT_CONFIG_PATH } from './defaults.ts'
  * Every other optional numeric/boolean/string field is omitted entirely
  * (not set to `undefined`) when the input is an empty string, so
  * `config/merge.ts` can tell "not provided" apart from "provided as the
- * same value as the default" (PRD §9.1: "пустая строка input = не задано").
+ * same value as the default" (an empty-string input means "not set").
  * `total_timeout_ms` follows this same omit-when-unset rule (rather than
  * defaulting here) so a `.github/code-review.yml`-only value can win over
  * the default at merge time (FR-6).
@@ -127,8 +127,8 @@ function parseApiHeaders (name: string): Record<string, string> {
       continue
     }
     headers[key] = value
-    // An internal gateway's own auth header may carry a secret (PRD §10.3),
-    // but only register it when the header NAME itself looks credential-like.
+    // An internal gateway's own auth header may carry a secret, but only
+    // register it when the header NAME itself looks credential-like.
     if (SECRET_HEADER_NAME_PATTERN.test(key)) {
       registerSecret(value)
     }

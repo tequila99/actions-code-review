@@ -687,7 +687,7 @@ export class AgentEngine implements ReviewEngine {
     const truncated = stopReason !== 'finished' && stopReason !== 'no_tool_calls'
     const aggregatedCostUsd = everyCallHadCost && iterations > 0 ? costUsd : undefined
 
-    // Дополнение G (FR-53): opt-in, `mode: agent` only. Deliberately does NOT fold the filter
+    // FR-53: opt-in, `mode: agent` only. Deliberately does NOT fold the filter
     // pass's own token usage into `promptTokens`/`completionTokens`/`costUsd` above — those
     // already assume a single price point (`budget.pricing`/the main model's real `costUsd`),
     // and the filter pass runs on a different (cheaper) model. Mixing the two would silently

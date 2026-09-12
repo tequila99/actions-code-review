@@ -1,5 +1,5 @@
 /**
- * DiffEngine context budgeting (PRD §7.4, FR-31/FR-32, R-TRUNC/FR-19).
+ * DiffEngine context budgeting (FR-31/FR-32, R-TRUNC/FR-19).
  *
  * ```
  * OUTPUT_RESERVE_SOFT = max(max_output_tokens, 1500)
@@ -19,20 +19,20 @@
  * budget would fit *more* input per batch and leave the model less room to
  * answer, which is exactly the bug this two-reserve scheme exists to avoid.
  *
- * Priority order among files (§7.4, reused conceptually from
+ * Priority order among files (reused conceptually from
  * `github/select-files.ts`'s prioritization — this module only re-applies
  * rule 1, since `select-files.ts` already sorted the files this engine
- * receives by the *rest* of §7.4's ordering before this stage ever runs):
+ * receives by the rest of that ordering before this stage ever runs):
  *   1. Files matched by `review.path_instructions`.
  *   2. Original (incoming) order otherwise.
  *
  * Packing: files are greedily added to the current batch while they fit
  * under `available`; when a file doesn't fit the current batch, a new batch
- * is opened as long as the total stays within `max_model_calls` (§7.4's
- * `K = min(ceil(need/available), max_model_calls)` — greedy bin-packing
+ * is opened as long as the total stays within `max_model_calls`
+ * (`K = min(ceil(need/available), max_model_calls)` — greedy bin-packing
  * reaches the same practical outcome — at most `max_model_calls` batches,
  * priority-ordered content first — without needing to precompute `K`
- * up front, see CHANGELOG.md "Этап 4"). Once `max_model_calls` batches are
+ * up front). Once `max_model_calls` batches are
  * full, every remaining file goes to `skipped` (R-TRUNC). A single file
  * whose own size exceeds `available` can never fit any batch and is skipped
  * immediately (T4.7) instead of stalling the packing loop.

@@ -39,15 +39,15 @@ import { logger } from './util/logger.ts'
 import { AppError, CapabilityError } from './util/errors.ts'
 import { redact } from './util/secrets.ts'
 
-/** §8.2 PRD: the only allowed values of the `skipped_reason` output. */
+/** The only allowed values of the `skipped_reason` output. */
 export type SkippedReason =
   '' | 'draft' | 'label' | 'no_changes' | 'budget_exceeded' | 'capability_check_failed'
 
 /**
- * §8.2 PRD (verbatim, 13 outputs) — the single source of truth for this
- * action's outputs. Every value is already a string (GitHub Actions outputs
- * are always strings; the "Формат содержимого" column of §8.2 just
- * documents what a consumer should parse it as).
+ * Verbatim, 13 outputs — the single source of truth for this action's
+ * outputs. Every value is already a string (GitHub Actions outputs are
+ * always strings; consumers should parse each one according to its
+ * documented type in `action.yml`).
  */
 export interface MainOutputs {
   review_id: string
@@ -63,7 +63,7 @@ export interface MainOutputs {
   cost_estimate_usd: string
   skipped_reason: string
   truncated: string
-  /** Дополнение G (FR-53): findings dropped by the noise-filter pass. Always '0' unless
+  /** FR-53: findings dropped by the noise-filter pass. Always '0' unless
    * `mode: agent` ran with `agent.filter_model` configured. */
   findings_filtered: string
 }
@@ -264,7 +264,7 @@ export const internals = {
     diff: DiffPhaseResult
   ): Promise<EnginePhaseResult> {
     const provider = createProviderAdapter(config)
-    // Дополнение G (FR-53): same api_key/base_url/flavor as `provider`, just a cheaper `model` —
+    // FR-53: same api_key/base_url/flavor as `provider`, just a cheaper `model` —
     // `AgentEngine` reads this only when `agent.filter_model` is set (see engine/types.ts).
     const filterProvider =
       config.agent.filter_model !== ''
@@ -310,7 +310,7 @@ export interface PublishPhaseInput {
   filesReviewed: number
   filesSkipped: SkippedFile[]
   mode: string
-  /** Дополнение C: ISO timestamp `run()` started at, embedded in the new history entry's header. */
+  /** ISO timestamp `run()` started at, embedded in the new history entry's header. */
   startedAt: string
 }
 
@@ -425,7 +425,7 @@ export async function run (): Promise<void> {
   // catch block clobber the just-published outputs with early-exit defaults.
   let outputsSet = false
   try {
-    // Дополнение C: captured once at the top of the run so every phase that
+    // Captured once at the top of the run so every phase that
     // needs it (only the publish phase, today) sees the same instant this
     // run started, embedded verbatim in the new sticky-comment history entry.
     const startedAt = new Date().toISOString()
@@ -444,7 +444,7 @@ export async function run (): Promise<void> {
       const context = internals.createContext(loadedConfig)
       const pr = await internals.fetchPr(context, loadedConfig)
 
-      // Дополнение B: PR title-based auto-detect of review.language, only when
+      // PR title-based auto-detect of review.language, only when
       // it was not set explicitly anywhere (input or `.github/code-review.yml`).
       const language = resolveReviewLanguage({
         explicitLanguage: languageExplicit ? loadedConfig.review.language : undefined,

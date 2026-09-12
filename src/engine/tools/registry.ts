@@ -52,7 +52,7 @@ export interface ToolExecutionContext {
   contextLines: number
   target: ReviewTarget
   comments: CommentAccumulator
-  /** Дополнение D (FR-51): gates whether `post_comment` accepts a verified
+  /** FR-51: gates whether `post_comment` accepts a verified
    * literal code-suggestion pair. Threaded from `config.agent.allow_suggestions`
    * — see `buildToolRegistry` below, which uses the same flag to decide
    * whether the model is even offered the fields. */
@@ -84,12 +84,12 @@ interface RegisteredTool {
  * below", a non-empty array narrows to exactly those names (unknown names
  * are ignored, not an error: the config schema doesn't validate tool names
  * against this list to avoid a config-schema <-> tool-registry coupling).
- * `allowSuggestions` (`config.agent.allow_suggestions`, Дополнение D) gates
+ * `allowSuggestions` (`config.agent.allow_suggestions`, FR-51) gates
  * `post_comment`'s spec itself — when `false` the model never even sees
  * `original_snippet`/`suggestion` as callable parameters, not just a
  * rejection at the handler layer.
  *
- * THR-9/SEC-4: except for `web_search` (THR-11, Дополнение F), this list is
+ * THR-9/SEC-4: except for `web_search` (THR-11), this list is
  * the entire tool surface `AgentEngine` can ever expose — there is no
  * `write_file`, `bash`/`run`, or other network tool, and none can be added
  * through configuration. `web_search` itself is opt-in and off by default

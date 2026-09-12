@@ -50,8 +50,8 @@ function extensionOf (path: string): string {
 }
 
 /**
- * PRD §7.4 rule 2: the repo's "main language" is determined locally (no
- * `repos.listLanguages` API call) as the extension with the most changed
+ * Priority rule 2 (below): the repo's "main language" is determined locally
+ * (no `repos.listLanguages` API call) as the extension with the most changed
  * files; ties broken by the extension with the larger total patch size.
  */
 function detectMainExtension (files: readonly DiffFile[]): string | null {
@@ -81,17 +81,17 @@ function detectMainExtension (files: readonly DiffFile[]): string | null {
 }
 
 /**
- * Filters, prioritizes and truncates the PR's diff files (FR-11/FR-12/FR-13,
- * PRD §7.4). Binary files and files excluded by `include`/`exclude` are
- * dropped silently — they were deliberately excluded, not "left unreviewed"
+ * Filters, prioritizes and truncates the PR's diff files (FR-11/FR-12/FR-13).
+ * Binary files and files excluded by `include`/`exclude` are dropped
+ * silently — they were deliberately excluded, not "left unreviewed"
  * (T2.49), so they never appear in `skipped` and never count against
  * `maxFiles`/`maxDiffBytes`.
  *
  * Priority order among the remaining files (most important first):
  * 1. Files matched by `pathInstructions`.
- * 2. Files on the repo's main language (by extension, §7.4 rule 2).
- * 3. Pure-deletion patches sort after everything else (§7.4 rule 4).
- * 4. Ascending patch byte size (§7.4 rule 3) — used both as the final
+ * 2. Files on the repo's main language (by extension, rule 2).
+ * 3. Pure-deletion patches sort after everything else (rule 4).
+ * 4. Ascending patch byte size (rule 3) — used both as the final
  *    ordering tiebreaker and, for same-priority files, the natural
  *    "small files first" order.
  */

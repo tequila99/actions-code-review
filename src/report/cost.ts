@@ -1,5 +1,5 @@
 /**
- * Cost estimation (FR-74, PRD §12.2). Deliberately depends on nothing but a
+ * Cost estimation (FR-74). Deliberately depends on nothing but a
  * token usage pair and an optional pricing config — no `ResolvedConfig`
  * import — so `format.ts`/`main.ts` can call it with whatever pricing they
  * already have in hand.
@@ -33,15 +33,15 @@ export function toPricing (
 }
 
 /** Shared 4-decimal-place formatting, used both by the `budget.pricing`
- * estimate below and by the provider-reported actual cost (Дополнение A). */
+ * estimate below and by the provider-reported actual cost. */
 function formatCostUsd (cost: number): string {
   return cost.toFixed(4)
 }
 
 /**
- * `cost = promptTokens/1e6 * inputPer1M + completionTokens/1e6 * outputPer1M`
- * (PRD §12.2), rounded to 4 decimal places. Without `pricing`, returns `''`
- * (FR-74) — there is nothing honest to report without a configured price.
+ * `cost = promptTokens/1e6 * inputPer1M + completionTokens/1e6 * outputPer1M`,
+ * rounded to 4 decimal places. Without `pricing`, returns `''` (FR-74) —
+ * there is nothing honest to report without a configured price.
  */
 export function estimateCost (usage: UsageTokens, pricing?: Pricing): string {
   if (pricing === undefined) return ''
@@ -52,7 +52,7 @@ export function estimateCost (usage: UsageTokens, pricing?: Pricing): string {
 }
 
 /**
- * `cost_estimate_usd` (Дополнение A / FR-74, revised priority): prefer the
+ * `cost_estimate_usd` (FR-74, revised priority): prefer the
  * provider's own reported actual cost (`usage.costUsd`, e.g. OpenRouter's
  * `usage.cost` surfaced through `TokenUsage.costUsd`) over the
  * `budget.pricing` estimate, which in turn beats an empty string. Real cost
@@ -69,8 +69,8 @@ export function resolveCostEstimateUsd (
 
 /**
  * `budget.max_cost_usd` enforcement (T8.5-T8.8, THR-8/R-13) is always
- * estimate-based, never provider-reported: a real per-call cost (Дополнение
- * A's `usage.costUsd`) only exists *after* a call completes, which is
+ * estimate-based, never provider-reported: a real per-call cost (this
+ * module's `usage.costUsd`) only exists *after* a call completes, which is
  * useless for a pre-flight check (T8.5) and no more "live" than an estimate
  * for a mid-run one (T8.6) — so both need `budget.pricing` specifically,
  * regardless of what `cost_estimate_usd` ends up reporting. `warn` is a

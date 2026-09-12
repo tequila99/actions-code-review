@@ -1,5 +1,5 @@
 /**
- * `web_search` tool (Дополнение F, THR-11) — opt-in, off by default
+ * `web_search` tool (THR-11) — opt-in, off by default
  * (`config.agent.web_search.enabled`). Unlike every other tool in this
  * registry, this one makes an outbound network call: it does NOT go through
  * `ProviderAdapter`/`CompletionRequest` (that contract stays
@@ -11,7 +11,7 @@
  * concrete function, not an interface, until a second backend is actually
  * needed).
  *
- * Security posture (THR-11, PRD.md §10.1): the query text is model-composed
+ * Security posture (THR-11): the query text is model-composed
  * and can be influenced by a malicious PR (THR-3), so it's the one place in
  * this codebase where untrusted content leaves the process. Mitigated by:
  * being opt-in/off-by-default, a per-run call cap independent of
@@ -107,8 +107,8 @@ interface UrlCitation {
 /** Best-effort: OpenRouter's older, now-deprecated `:online`/`plugins`
  * web-search shorthand documents `message.annotations[].url_citation`
  * (`{type:'url_citation', url_citation:{url, title}}`) — this server tool's
- * response shape isn't fully confirmed from documentation alone (see
- * PLAN.md's "Open risk" note). Absent/malformed annotations are silently
+ * response shape isn't fully confirmed from documentation alone — a known
+ * open risk. Absent/malformed annotations are silently
  * ignored, never an error — citations are a nice-to-have on top of the
  * answer text, not something the tool depends on. */
 function extractCitations (message: Record<string, unknown>): UrlCitation[] {

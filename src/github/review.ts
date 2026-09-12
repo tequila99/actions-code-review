@@ -1,5 +1,5 @@
 /**
- * Publishes findings to a PR (FR-60..FR-62/FR-68/FR-69, PRD §7.5). This is
+ * Publishes findings to a PR (FR-60..FR-62/FR-68/FR-69). This is
  * layer 2+3 of the three-layer 422 defense described in `position-map.ts`
  * (layer 1): here we build the `pulls.createReview` payload from
  * already-validated positions and, if GitHub still rejects the batch with a
@@ -69,11 +69,11 @@ function extractBlamedPositions (error: unknown): Array<{ path: string; line: nu
 /**
  * Builds the text body of one inline review comment: a severity/category
  * header, the (redacted) message, an optional literal code-suggestion
- * (Дополнение D, FR-51 — AgentEngine only, already verified against disk
- * before reaching here), and a small-font `<sub>` footer naming the model
- * that produced it — set apart from the main text so it reads as metadata,
- * not part of the finding itself. Useful when comparing multiple models'
- * reviews on the same PR (see model-review-quality-*.md reports).
+ * (FR-51 — AgentEngine only, already verified against disk before reaching
+ * here), and a small-font `<sub>` footer naming the model that produced it —
+ * set apart from the main text so it reads as metadata, not part of the
+ * finding itself. Useful when comparing multiple models' review quality on
+ * the same PR.
  */
 export function formatCommentBody (finding: Finding, model: string): string {
   const parts = [
