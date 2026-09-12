@@ -1,0 +1,12 @@
+diff --git a/src/legacy/helper.ts b/src/utils/helper.ts
+similarity index 92%
+rename from src/legacy/helper.ts
+rename to src/utils/helper.ts
+index 5555555..6666666 100644
+--- a/src/legacy/helper.ts
++++ b/src/utils/helper.ts
+@@ -1,3 +1,3 @@
+ export function helper(): void {
+-  console.log('old')
++  console.log('new')
+ }

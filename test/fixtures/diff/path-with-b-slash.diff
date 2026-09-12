@@ -1,0 +1,8 @@
+diff --git a/src/b/foo.ts b/src/b/foo.ts
+index e1e1e1e..e2e2e2e 100644
+--- a/src/b/foo.ts
++++ b/src/b/foo.ts
+@@ -1,2 +1,2 @@
+-const val = 1
++const val = 2
+ export default val

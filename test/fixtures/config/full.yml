@@ -1,0 +1,77 @@
+version: 1
+
+mode: diff
+model: qwen/qwen3-coder
+
+api:
+  base_url: https://openrouter.ai/api/v1
+  flavor: openai
+  context_window: 262144
+  request_timeout_ms: 120000
+  total_timeout_ms: 900000
+  headers:
+    X-Title: tequila99 Code Review
+    HTTP-Referer: https://github.com/tequila99
+
+filters:
+  include:
+    - 'src/**'
+    - 'apps/**'
+  exclude:
+    - '**/*.snap'
+    - '**/__generated__/**'
+  max_files: 50
+  max_diff_bytes: 400000
+  skip_drafts: true
+  skip_labels: [no-ai-review, wip]
+  context_lines: 3
+
+review:
+  language: ru
+  max_comments: 25
+  fail_on_severity: none
+  summary_only: false
+  focus:
+    - correctness
+    - security
+    - performance
+    - readability
+    - architecture
+  ignore:
+    - 'форматирование, если проходит prettier'
+    - 'предпочтения по именованию без функционального влияния'
+  path_instructions:
+    - path: 'src/db/**'
+      instructions: |
+        Проверяй инварианты миграций: миграция должна быть обратимой,
+        новые колонки — nullable или с DEFAULT.
+    - path: 'apps/web/**'
+      instructions: |
+        Проверяй паттерны пагинации и бесконечного скролла,
+        отсутствие ручных импортов там, где работают auto-imports.
+    - path: 'packages/common/**'
+      instructions: |
+        Изменение публичного API требует версии в package.json.
+
+context:
+  always:
+    - CLAUDE.md
+  layers:
+    - path: 'src/db/**'
+      context_files: ['.claude/context/db.md']
+    - path: 'apps/web/**'
+      context_files: ['.claude/context/frontend.md']
+  max_context_bytes: 60000
+
+agent:
+  max_iterations: 20
+  max_tool_calls: 60
+  token_budget: 300000
+  tool_output_max_bytes: 32768
+  tools: [get_diff, read_file, list_files, grep, post_comment, finish]
+
+budget:
+  max_cost_usd: 0.50
+  pricing:
+    input_per_1m: 0.30
+    output_per_1m: 1.00

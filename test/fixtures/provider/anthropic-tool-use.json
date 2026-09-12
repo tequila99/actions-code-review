@@ -1,0 +1,21 @@
+{
+  "id": "msg_fixture_2",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "content": [
+    { "type": "text", "text": "Let me check the file." },
+    {
+      "type": "tool_use",
+      "id": "toolu_fixture_1",
+      "name": "read_file",
+      "input": { "path": "src/index.ts" }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 200,
+    "output_tokens": 40
+  }
+}

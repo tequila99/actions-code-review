@@ -1,0 +1,39 @@
+{
+  "name": "actions-code-review",
+  "version": "0.0.2",
+  "private": true,
+  "description": "Provider-agnostic AI code review for GitHub pull requests. Any OpenAI-compatible endpoint, a token, and a model name.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tequila99/actions-code-review.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tequila99/actions-code-review/issues"
+  },
+  "homepage": "https://github.com/tequila99/actions-code-review#readme",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 \"src/**/*.test.ts\" \"test/**/*.test.ts\"",
+    "test:watch": "node --test --watch \"src/**/*.test.ts\" \"test/**/*.test.ts\"",
+    "lint": "eslint .",
+    "format": "eslint --fix .",
+    "typecheck": "tsc --noEmit",
+    "all": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.2",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.8.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
+    "minimatch": "^10.2.6",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  }
+}

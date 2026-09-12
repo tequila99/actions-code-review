@@ -1,0 +1,506 @@
+diff --git a/src/module_01.ts b/src/module_01.ts
+index aaa1..bbb1 100644
+--- a/src/module_01.ts
++++ b/src/module_01.ts
+@@ -1,15 +1,15 @@
+ const unchanged1_1 = 1
+ const unchanged1_2 = 2
+ const unchanged1_3 = 3
+-const value1_4 = 4
++const value1_4 = 5
+ const unchanged1_5 = 5
+ const unchanged1_6 = 6
+ const unchanged1_7 = 7
+-const value1_8 = 8
++const value1_8 = 9
+ const unchanged1_9 = 9
+ const unchanged1_10 = 10
+ const unchanged1_11 = 11
+-const value1_12 = 12
++const value1_12 = 13
+ const unchanged1_13 = 13
+ const unchanged1_14 = 14
+ const unchanged1_15 = 15
+diff --git a/src/module_02.ts b/src/module_02.ts
+index aaa2..bbb2 100644
+--- a/src/module_02.ts
++++ b/src/module_02.ts
+@@ -1,15 +1,15 @@
+ const unchanged2_1 = 1
+ const unchanged2_2 = 2
+ const unchanged2_3 = 3
+-const value2_4 = 4
++const value2_4 = 5
+ const unchanged2_5 = 5
+ const unchanged2_6 = 6
+ const unchanged2_7 = 7
+-const value2_8 = 8
++const value2_8 = 9
+ const unchanged2_9 = 9
+ const unchanged2_10 = 10
+ const unchanged2_11 = 11
+-const value2_12 = 12
++const value2_12 = 13
+ const unchanged2_13 = 13
+ const unchanged2_14 = 14
+ const unchanged2_15 = 15
+diff --git a/src/module_03.ts b/src/module_03.ts
+index aaa3..bbb3 100644
+--- a/src/module_03.ts
++++ b/src/module_03.ts
+@@ -1,15 +1,15 @@
+ const unchanged3_1 = 1
+ const unchanged3_2 = 2
+ const unchanged3_3 = 3
+-const value3_4 = 4
++const value3_4 = 5
+ const unchanged3_5 = 5
+ const unchanged3_6 = 6
+ const unchanged3_7 = 7
+-const value3_8 = 8
++const value3_8 = 9
+ const unchanged3_9 = 9
+ const unchanged3_10 = 10
+ const unchanged3_11 = 11
+-const value3_12 = 12
++const value3_12 = 13
+ const unchanged3_13 = 13
+ const unchanged3_14 = 14
+ const unchanged3_15 = 15
+diff --git a/src/module_04.ts b/src/module_04.ts
+index aaa4..bbb4 100644
+--- a/src/module_04.ts
++++ b/src/module_04.ts
+@@ -1,15 +1,15 @@
+ const unchanged4_1 = 1
+ const unchanged4_2 = 2
+ const unchanged4_3 = 3
+-const value4_4 = 4
++const value4_4 = 5
+ const unchanged4_5 = 5
+ const unchanged4_6 = 6
+ const unchanged4_7 = 7
+-const value4_8 = 8
++const value4_8 = 9
+ const unchanged4_9 = 9
+ const unchanged4_10 = 10
+ const unchanged4_11 = 11
+-const value4_12 = 12
++const value4_12 = 13
+ const unchanged4_13 = 13
+ const unchanged4_14 = 14
+ const unchanged4_15 = 15
+diff --git a/src/module_05.ts b/src/module_05.ts
+index aaa5..bbb5 100644
+--- a/src/module_05.ts
++++ b/src/module_05.ts
+@@ -1,15 +1,15 @@
+ const unchanged5_1 = 1
+ const unchanged5_2 = 2
+ const unchanged5_3 = 3
+-const value5_4 = 4
++const value5_4 = 5
+ const unchanged5_5 = 5
+ const unchanged5_6 = 6
+ const unchanged5_7 = 7
+-const value5_8 = 8
++const value5_8 = 9
+ const unchanged5_9 = 9
+ const unchanged5_10 = 10
+ const unchanged5_11 = 11
+-const value5_12 = 12
++const value5_12 = 13
+ const unchanged5_13 = 13
+ const unchanged5_14 = 14
+ const unchanged5_15 = 15
+diff --git a/src/module_06.ts b/src/module_06.ts
+index aaa6..bbb6 100644
+--- a/src/module_06.ts
++++ b/src/module_06.ts
+@@ -1,15 +1,15 @@
+ const unchanged6_1 = 1
+ const unchanged6_2 = 2
+ const unchanged6_3 = 3
+-const value6_4 = 4
++const value6_4 = 5
+ const unchanged6_5 = 5
+ const unchanged6_6 = 6
+ const unchanged6_7 = 7
+-const value6_8 = 8
++const value6_8 = 9
+ const unchanged6_9 = 9
+ const unchanged6_10 = 10
+ const unchanged6_11 = 11
+-const value6_12 = 12
++const value6_12 = 13
+ const unchanged6_13 = 13
+ const unchanged6_14 = 14
+ const unchanged6_15 = 15
+diff --git a/src/module_07.ts b/src/module_07.ts
+index aaa7..bbb7 100644
+--- a/src/module_07.ts
++++ b/src/module_07.ts
+@@ -1,15 +1,15 @@
+ const unchanged7_1 = 1
+ const unchanged7_2 = 2
+ const unchanged7_3 = 3
+-const value7_4 = 4
++const value7_4 = 5
+ const unchanged7_5 = 5
+ const unchanged7_6 = 6
+ const unchanged7_7 = 7
+-const value7_8 = 8
++const value7_8 = 9
+ const unchanged7_9 = 9
+ const unchanged7_10 = 10
+ const unchanged7_11 = 11
+-const value7_12 = 12
++const value7_12 = 13
+ const unchanged7_13 = 13
+ const unchanged7_14 = 14
+ const unchanged7_15 = 15
+diff --git a/src/module_08.ts b/src/module_08.ts
+index aaa8..bbb8 100644
+--- a/src/module_08.ts
++++ b/src/module_08.ts
+@@ -1,15 +1,15 @@
+ const unchanged8_1 = 1
+ const unchanged8_2 = 2
+ const unchanged8_3 = 3
+-const value8_4 = 4
++const value8_4 = 5
+ const unchanged8_5 = 5
+ const unchanged8_6 = 6
+ const unchanged8_7 = 7
+-const value8_8 = 8
++const value8_8 = 9
+ const unchanged8_9 = 9
+ const unchanged8_10 = 10
+ const unchanged8_11 = 11
+-const value8_12 = 12
++const value8_12 = 13
+ const unchanged8_13 = 13
+ const unchanged8_14 = 14
+ const unchanged8_15 = 15
+diff --git a/src/module_09.ts b/src/module_09.ts
+index aaa9..bbb9 100644
+--- a/src/module_09.ts
++++ b/src/module_09.ts
+@@ -1,15 +1,15 @@
+ const unchanged9_1 = 1
+ const unchanged9_2 = 2
+ const unchanged9_3 = 3
+-const value9_4 = 4
++const value9_4 = 5
+ const unchanged9_5 = 5
+ const unchanged9_6 = 6
+ const unchanged9_7 = 7
+-const value9_8 = 8
++const value9_8 = 9
+ const unchanged9_9 = 9
+ const unchanged9_10 = 10
+ const unchanged9_11 = 11
+-const value9_12 = 12
++const value9_12 = 13
+ const unchanged9_13 = 13
+ const unchanged9_14 = 14
+ const unchanged9_15 = 15
+diff --git a/src/module_10.ts b/src/module_10.ts
+index aaa10..bbb10 100644
+--- a/src/module_10.ts
++++ b/src/module_10.ts
+@@ -1,15 +1,15 @@
+ const unchanged10_1 = 1
+ const unchanged10_2 = 2
+ const unchanged10_3 = 3
+-const value10_4 = 4
++const value10_4 = 5
+ const unchanged10_5 = 5
+ const unchanged10_6 = 6
+ const unchanged10_7 = 7
+-const value10_8 = 8
++const value10_8 = 9
+ const unchanged10_9 = 9
+ const unchanged10_10 = 10
+ const unchanged10_11 = 11
+-const value10_12 = 12
++const value10_12 = 13
+ const unchanged10_13 = 13
+ const unchanged10_14 = 14
+ const unchanged10_15 = 15
+diff --git a/src/module_11.ts b/src/module_11.ts
+index aaa11..bbb11 100644
+--- a/src/module_11.ts
++++ b/src/module_11.ts
+@@ -1,15 +1,15 @@
+ const unchanged11_1 = 1
+ const unchanged11_2 = 2
+ const unchanged11_3 = 3
+-const value11_4 = 4
++const value11_4 = 5
+ const unchanged11_5 = 5
+ const unchanged11_6 = 6
+ const unchanged11_7 = 7
+-const value11_8 = 8
++const value11_8 = 9
+ const unchanged11_9 = 9
+ const unchanged11_10 = 10
+ const unchanged11_11 = 11
+-const value11_12 = 12
++const value11_12 = 13
+ const unchanged11_13 = 13
+ const unchanged11_14 = 14
+ const unchanged11_15 = 15
+diff --git a/src/module_12.ts b/src/module_12.ts
+index aaa12..bbb12 100644
+--- a/src/module_12.ts
++++ b/src/module_12.ts
+@@ -1,15 +1,15 @@
+ const unchanged12_1 = 1
+ const unchanged12_2 = 2
+ const unchanged12_3 = 3
+-const value12_4 = 4
++const value12_4 = 5
+ const unchanged12_5 = 5
+ const unchanged12_6 = 6
+ const unchanged12_7 = 7
+-const value12_8 = 8
++const value12_8 = 9
+ const unchanged12_9 = 9
+ const unchanged12_10 = 10
+ const unchanged12_11 = 11
+-const value12_12 = 12
++const value12_12 = 13
+ const unchanged12_13 = 13
+ const unchanged12_14 = 14
+ const unchanged12_15 = 15
+diff --git a/src/module_13.ts b/src/module_13.ts
+index aaa13..bbb13 100644
+--- a/src/module_13.ts
++++ b/src/module_13.ts
+@@ -1,15 +1,15 @@
+ const unchanged13_1 = 1
+ const unchanged13_2 = 2
+ const unchanged13_3 = 3
+-const value13_4 = 4
++const value13_4 = 5
+ const unchanged13_5 = 5
+ const unchanged13_6 = 6
+ const unchanged13_7 = 7
+-const value13_8 = 8
++const value13_8 = 9
+ const unchanged13_9 = 9
+ const unchanged13_10 = 10
+ const unchanged13_11 = 11
+-const value13_12 = 12
++const value13_12 = 13
+ const unchanged13_13 = 13
+ const unchanged13_14 = 14
+ const unchanged13_15 = 15
+diff --git a/src/module_14.ts b/src/module_14.ts
+index aaa14..bbb14 100644
+--- a/src/module_14.ts
++++ b/src/module_14.ts
+@@ -1,15 +1,15 @@
+ const unchanged14_1 = 1
+ const unchanged14_2 = 2
+ const unchanged14_3 = 3
+-const value14_4 = 4
++const value14_4 = 5
+ const unchanged14_5 = 5
+ const unchanged14_6 = 6
+ const unchanged14_7 = 7
+-const value14_8 = 8
++const value14_8 = 9
+ const unchanged14_9 = 9
+ const unchanged14_10 = 10
+ const unchanged14_11 = 11
+-const value14_12 = 12
++const value14_12 = 13
+ const unchanged14_13 = 13
+ const unchanged14_14 = 14
+ const unchanged14_15 = 15
+diff --git a/src/module_15.ts b/src/module_15.ts
+index aaa15..bbb15 100644
+--- a/src/module_15.ts
++++ b/src/module_15.ts
+@@ -1,15 +1,15 @@
+ const unchanged15_1 = 1
+ const unchanged15_2 = 2
+ const unchanged15_3 = 3
+-const value15_4 = 4
++const value15_4 = 5
+ const unchanged15_5 = 5
+ const unchanged15_6 = 6
+ const unchanged15_7 = 7
+-const value15_8 = 8
++const value15_8 = 9
+ const unchanged15_9 = 9
+ const unchanged15_10 = 10
+ const unchanged15_11 = 11
+-const value15_12 = 12
++const value15_12 = 13
+ const unchanged15_13 = 13
+ const unchanged15_14 = 14
+ const unchanged15_15 = 15
+diff --git a/src/module_16.ts b/src/module_16.ts
+index aaa16..bbb16 100644
+--- a/src/module_16.ts
++++ b/src/module_16.ts
+@@ -1,15 +1,15 @@
+ const unchanged16_1 = 1
+ const unchanged16_2 = 2
+ const unchanged16_3 = 3
+-const value16_4 = 4
++const value16_4 = 5
+ const unchanged16_5 = 5
+ const unchanged16_6 = 6
+ const unchanged16_7 = 7
+-const value16_8 = 8
++const value16_8 = 9
+ const unchanged16_9 = 9
+ const unchanged16_10 = 10
+ const unchanged16_11 = 11
+-const value16_12 = 12
++const value16_12 = 13
+ const unchanged16_13 = 13
+ const unchanged16_14 = 14
+ const unchanged16_15 = 15
+diff --git a/src/module_17.ts b/src/module_17.ts
+index aaa17..bbb17 100644
+--- a/src/module_17.ts
++++ b/src/module_17.ts
+@@ -1,15 +1,15 @@
+ const unchanged17_1 = 1
+ const unchanged17_2 = 2
+ const unchanged17_3 = 3
+-const value17_4 = 4
++const value17_4 = 5
+ const unchanged17_5 = 5
+ const unchanged17_6 = 6
+ const unchanged17_7 = 7
+-const value17_8 = 8
++const value17_8 = 9
+ const unchanged17_9 = 9
+ const unchanged17_10 = 10
+ const unchanged17_11 = 11
+-const value17_12 = 12
++const value17_12 = 13
+ const unchanged17_13 = 13
+ const unchanged17_14 = 14
+ const unchanged17_15 = 15
+diff --git a/src/module_18.ts b/src/module_18.ts
+index aaa18..bbb18 100644
+--- a/src/module_18.ts
++++ b/src/module_18.ts
+@@ -1,15 +1,15 @@
+ const unchanged18_1 = 1
+ const unchanged18_2 = 2
+ const unchanged18_3 = 3
+-const value18_4 = 4
++const value18_4 = 5
+ const unchanged18_5 = 5
+ const unchanged18_6 = 6
+ const unchanged18_7 = 7
+-const value18_8 = 8
++const value18_8 = 9
+ const unchanged18_9 = 9
+ const unchanged18_10 = 10
+ const unchanged18_11 = 11
+-const value18_12 = 12
++const value18_12 = 13
+ const unchanged18_13 = 13
+ const unchanged18_14 = 14
+ const unchanged18_15 = 15
+diff --git a/src/module_19.ts b/src/module_19.ts
+index aaa19..bbb19 100644
+--- a/src/module_19.ts
++++ b/src/module_19.ts
+@@ -1,15 +1,15 @@
+ const unchanged19_1 = 1
+ const unchanged19_2 = 2
+ const unchanged19_3 = 3
+-const value19_4 = 4
++const value19_4 = 5
+ const unchanged19_5 = 5
+ const unchanged19_6 = 6
+ const unchanged19_7 = 7
+-const value19_8 = 8
++const value19_8 = 9
+ const unchanged19_9 = 9
+ const unchanged19_10 = 10
+ const unchanged19_11 = 11
+-const value19_12 = 12
++const value19_12 = 13
+ const unchanged19_13 = 13
+ const unchanged19_14 = 14
+ const unchanged19_15 = 15
+diff --git a/src/module_20.ts b/src/module_20.ts
+index aaa20..bbb20 100644
+--- a/src/module_20.ts
++++ b/src/module_20.ts
+@@ -1,15 +1,15 @@
+ const unchanged20_1 = 1
+ const unchanged20_2 = 2
+ const unchanged20_3 = 3
+-const value20_4 = 4
++const value20_4 = 5
+ const unchanged20_5 = 5
+ const unchanged20_6 = 6
+ const unchanged20_7 = 7
+-const value20_8 = 8
++const value20_8 = 9
+ const unchanged20_9 = 9
+ const unchanged20_10 = 10
+ const unchanged20_11 = 11
+-const value20_12 = 12
++const value20_12 = 13
+ const unchanged20_13 = 13
+ const unchanged20_14 = 14
+ const unchanged20_15 = 15
+diff --git a/src/module_21.ts b/src/module_21.ts
+index aaa21..bbb21 100644
+--- a/src/module_21.ts
++++ b/src/module_21.ts
+@@ -1,15 +1,15 @@
+ const unchanged21_1 = 1
+ const unchanged21_2 = 2
+ const unchanged21_3 = 3
+-const value21_4 = 4
++const value21_4 = 5
+ const unchanged21_5 = 5
+ const unchanged21_6 = 6
+ const unchanged21_7 = 7
+-const value21_8 = 8
++const value21_8 = 9
+ const unchanged21_9 = 9
+ const unchanged21_10 = 10
+ const unchanged21_11 = 11
+-const value21_12 = 12
++const value21_12 = 13
+ const unchanged21_13 = 13
+ const unchanged21_14 = 14
+ const unchanged21_15 = 15
+diff --git a/src/module_22.ts b/src/module_22.ts
+index aaa22..bbb22 100644
+--- a/src/module_22.ts
++++ b/src/module_22.ts
+@@ -1,15 +1,15 @@
+ const unchanged22_1 = 1
+ const unchanged22_2 = 2
+ const unchanged22_3 = 3
+-const value22_4 = 4
++const value22_4 = 5
+ const unchanged22_5 = 5
+ const unchanged22_6 = 6
+ const unchanged22_7 = 7
+-const value22_8 = 8
++const value22_8 = 9
+ const unchanged22_9 = 9
+ const unchanged22_10 = 10
+ const unchanged22_11 = 11
+-const value22_12 = 12
++const value22_12 = 13
+ const unchanged22_13 = 13
+ const unchanged22_14 = 14
+ const unchanged22_15 = 15

@@ -1,0 +1,9 @@
+diff --git a/src/new-module.ts b/src/new-module.ts
+new file mode 100644
+index 0000000..1a2b3c4
+--- /dev/null
++++ b/src/new-module.ts
+@@ -0,0 +1,3 @@
++export function add(a: number, b: number): number {
++  return a + b
++}

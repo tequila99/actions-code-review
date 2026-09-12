@@ -1,0 +1,20 @@
+diff --git a/src/scattered.ts b/src/scattered.ts
+index d1d1d1d..d2d2d2d 100644
+--- a/src/scattered.ts
++++ b/src/scattered.ts
+@@ -1,2 +1,2 @@
+-alpha old
++alpha new
+ alpha2
+@@ -10,2 +10,2 @@
+-beta old
++beta new
+ beta2
+@@ -20,2 +20,2 @@
+-gamma old
++gamma new
+ gamma2
+@@ -30,2 +30,2 @@
+-delta old
++delta new
+ delta2

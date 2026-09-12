@@ -1,0 +1,39 @@
+name: Check dist/
+
+# R-8: `dist/index.js` is committed (GitHub Actions does not run `npm install`
+# before executing a JS action) — this workflow is the CI-side guarantee that
+# the committed bundle actually matches `src/`. It rebuilds from source and
+# fails if the rebuild differs from what's checked in, catching a PR that
+# edited `src/` without running `npm run build` before committing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: check-dist-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Rebuild dist/
+        run: npm run build
+
+      - name: Fail if dist/ is out of date
+        run: |
+          if ! git diff --exit-code dist/; then
+            echo "::error::dist/ is out of date. Run 'npm run build' and commit the result." >&2
+            exit 1
+          fi

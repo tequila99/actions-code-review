@@ -1,0 +1,57 @@
+name: E2E
+
+# C6.5 (IMPLEMENTATION_PLAN.md "Этап 6"): dogfoods this action against its
+# own PRs via `uses: ./` (the local checkout, not a pinned release tag), the
+# same referenced-workflow shape as PRD §3.3. This is *not* wired into the
+# `pull_request:` trigger of `ci.yml` (it needs `secrets.LLM_API_KEY`, which
+# a fork PR never has, and it is a "does the whole thing actually run"
+# smoke test rather than a merge gate) — it runs on `workflow_dispatch` for
+# a manual, real e2e check, and opportunistically on `labeled` for PRs in
+# this repo carrying the `ai-review` label, mirroring the intended end-user
+# workflow. `test/e2e/*.test.ts` (T6.10-T6.17) already covers the same call
+# graph with mocked Octokit + a fake provider on every `pull_request` push,
+# via `ci.yml`'s `npm test`; this workflow is the real-network complement.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ai-review'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Run the action against this PR
+        if: github.event_name == 'pull_request'
+        uses: ./
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          api_key: ${{ secrets.LLM_API_KEY }}
+          api_base_url: ${{ vars.E2E_API_BASE_URL || 'https://api.openai.com/v1' }}
+          model: ${{ vars.E2E_MODEL || 'gpt-4.1-mini' }}
+          mode: diff
+          fail_on_severity: none
+
+      - name: Unit-level e2e suite (mocked Octokit + fake provider)
+        run: node --test "test/e2e/**/*.test.ts"

@@ -1,0 +1,6 @@
+node_modules/
+*.log
+
+# Claude Code project settings and internal-only docs (PRD, implementation
+# plan, checklist, TODO, dev-log CHANGELOG, ad-hoc reports) — not published.
+.claude/

@@ -1,0 +1,39 @@
+{
+  // P0.4: конвенция импортов при связке `node --test` (нативный type-stripping,
+  // Node 24 erasable TypeScript syntax) + esbuild (CJS-бандл для dist/index.js).
+  //
+  // Эмпирически проверено на Node v24.2.0 (см. CHANGELOG.md, P0.4):
+  // относительные импорты БЕЗ расширения (`from './main'`) падают под
+  // `node --test` с ERR_MODULE_NOT_FOUND — Node 24 type-stripping (в отличие
+  // от того, что предполагалось изначально) НЕ резолвит расширение сам.
+  // Решение: относительные импорты С ЯВНЫМ расширением `.ts`
+  // (`from './main.ts'`). Проверено, что это работает и под `node --test`,
+  // и под esbuild-бандлинг (esbuild резолвит `.ts`-импорт по фактическому
+  // файлу независимо от `outExtension`/CJS-формата вывода).
+  // "allowImportingTsExtensions": true требует "noEmit": true (у нас есть,
+  // т.к. эмиссией занимается esbuild, а не tsc).
+  // "module": "esnext" + "moduleResolution": "bundler" — пара, совместимая
+  // одновременно с обоими инструментами.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.mjs"]
+}

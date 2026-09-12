@@ -1,0 +1,8 @@
+diff --git a/src/crlf.ts b/src/crlf.ts
+index c1c1c1c..c2c2c2c 100644
+--- a/src/crlf.ts
++++ b/src/crlf.ts
+@@ -1,2 +1,2 @@
+ const x = 1
+-const y = 2
++const y = 3

@@ -1,0 +1,190 @@
+name: 'AI Code Review'
+description: 'Provider-agnostic AI code review for pull requests. Any OpenAI-compatible endpoint, token and model name.'
+author: 'tequila99'
+
+branding:
+  icon: 'eye'
+  color: 'purple'
+
+inputs:
+  github_token:
+    description: 'Token used to call the GitHub API (read the PR/diff, publish the review). Falls back to the GITHUB_TOKEN env var.'
+    required: false
+    default: '${{ github.token }}'
+  api_key:
+    description: 'API key/token for the LLM provider. Falls back to the CODE_REVIEW_API_KEY env var. Required if the provider needs authorization.'
+    required: false
+    default: ''
+  api_base_url:
+    description: 'Base URL of the LLM API. For OpenAI-compatible endpoints, everything up to (and not including) "/v1".'
+    required: false
+    default: 'https://api.openai.com/v1'
+  model:
+    description: 'Model name, in the terms the configured provider expects (e.g. gpt-4.1-mini, qwen/qwen3-coder).'
+    required: true
+  api_flavor:
+    description: 'Wire dialect to speak to the provider: openai | anthropic | gemini.'
+    required: false
+    default: 'openai'
+  api_headers:
+    description: 'Extra HTTP headers to send with every provider request, one "Key: Value" pair per line.'
+    required: false
+    default: ''
+  allow_insecure_base_url:
+    description: 'Allow a plain http:// api_base_url (e.g. for an internal gateway). Disabled by default for security.'
+    required: false
+    default: 'false'
+  mode:
+    description: 'Review engine to use: diff | agent | auto.'
+    required: false
+    default: 'diff'
+  config_path:
+    description: 'Path (relative to the repo root) to the optional YAML configuration file.'
+    required: false
+    default: '.github/code-review.yml'
+  include:
+    description: 'Glob patterns of files to include in the review, one per line. Empty means "everything not excluded".'
+    required: false
+    default: ''
+  exclude:
+    description: 'Glob patterns of files to exclude from the review, one per line. Added on top of the built-in default excludes.'
+    required: false
+    default: ''
+  max_files:
+    description: 'Maximum number of files to review in a single run.'
+    required: false
+    default: '50'
+  max_diff_bytes:
+    description: 'Maximum total diff size (bytes) to send for review.'
+    required: false
+    default: '400000'
+  max_comments:
+    description: 'Maximum number of inline review comments to publish.'
+    required: false
+    default: '25'
+  max_output_tokens:
+    description: 'Maximum output tokens requested from the model per call.'
+    required: false
+    default: '4000'
+  max_model_calls:
+    description: 'Maximum number of model calls the diff engine may make in one run.'
+    required: false
+    default: '3'
+  context_window:
+    description: "Model's context window size (tokens), used for budgeting how much diff/context fits per call."
+    required: false
+    default: '128000'
+  temperature:
+    description: 'Sampling temperature to send to the model. Leave empty to omit the parameter entirely.'
+    required: false
+    default: ''
+  request_timeout_ms:
+    description: 'Timeout (milliseconds) for a single request to the model.'
+    required: false
+    default: '120000'
+  total_timeout_ms:
+    description: 'Overall timeout (milliseconds) for the whole action run.'
+    required: false
+    default: '900000'
+  incremental:
+    description: 'Only review commits added since the last review on this PR, when possible.'
+    required: false
+    default: 'true'
+  skip_drafts:
+    description: 'Skip review entirely for draft pull requests.'
+    required: false
+    default: 'true'
+  skip_labels:
+    description: 'PR labels that cause review to be skipped, one per line.'
+    required: false
+    default: ''
+  language:
+    description: "Language for review comments (e.g. en, ru). If left empty, the language is auto-detected from the PR title (en/ru only for now); falls back to en when detection isn't confident."
+    required: false
+    default: ''
+  fail_on_severity:
+    description: 'Minimum finding severity that makes the job fail: none | medium | high.'
+    required: false
+    default: 'none'
+  summary_only:
+    description: 'Only publish the summary comment, without inline comments.'
+    required: false
+    default: 'false'
+  custom_instructions:
+    description: 'Free-text guidance from the repository maintainer, added to the system prompt after focus/ignore (supplementary only — cannot override the output format, limits, or SEC-1). Capped at 4000 characters.'
+    required: false
+    default: ''
+  agent_max_iterations:
+    description: 'Maximum tool-use loop iterations for mode: agent.'
+    required: false
+    default: '20'
+  agent_max_tool_calls:
+    description: 'Maximum total tool calls for mode: agent.'
+    required: false
+    default: '200'
+  agent_token_budget:
+    description: 'Overall input token budget for mode: agent.'
+    required: false
+    default: '300000'
+  agent_allow_suggestions:
+    description: 'For mode: agent, whether post_comment may attach a verified, literal GitHub-native code-suggestion block.'
+    required: false
+    default: 'true'
+  agent_web_search:
+    description: 'For mode: agent, whether the model may call the opt-in `web_search` tool (OpenRouter-native `openrouter:web_search` server tool only). Off by default — the only tool that ever makes an outbound network call.'
+    required: false
+    default: 'false'
+  agent_web_search_max_calls:
+    description: 'For mode: agent, when agent_web_search is enabled, the maximum web_search calls in one run, independent of agent_max_tool_calls.'
+    required: false
+    default: '4'
+  agent_filter_model:
+    description: 'For mode: agent, an optional cheaper model (same provider/api_key/base_url as `model`) that reviews the collected findings after the tool loop ends and drops low-value noise before publishing. Empty (default) disables the pass entirely.'
+    required: false
+    default: ''
+  auto_threshold_files:
+    description: 'For mode: auto, the file-count threshold below which the agent engine is selected.'
+    required: false
+    default: '8'
+  dry_run:
+    description: 'Run the full review but publish nothing (no review, no comments, no sticky state update).'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable verbose debug logging.'
+    required: false
+    default: 'false'
+
+outputs:
+  review_id:
+    description: 'ID of the created review (empty when dry_run or skipped).'
+  mode_used:
+    description: 'Engine actually used for this run: diff | agent | "" (when skipped).'
+  comments_posted:
+    description: 'Number of inline comments published.'
+  files_reviewed:
+    description: 'Number of files included in the review.'
+  files_skipped:
+    description: 'Number of files that were not reviewed.'
+  skipped_files:
+    description: 'JSON array of paths of the files that were not reviewed.'
+  findings_total:
+    description: 'Total number of findings produced by the review.'
+  severity_max:
+    description: 'Highest severity among the findings: high | medium | low | info | none.'
+  tokens_input:
+    description: 'Total input tokens consumed across model calls.'
+  tokens_output:
+    description: 'Total output tokens produced across model calls.'
+  cost_estimate_usd:
+    description: 'Estimated cost of the run in USD (empty unless budget.pricing is configured).'
+  skipped_reason:
+    description: 'Reason the run stopped early, if any: "" | draft | label | no_changes | budget_exceeded | capability_check_failed.'
+  truncated:
+    description: 'Whether some changes were dropped from the review due to limits: true | false.'
+  findings_filtered:
+    description: 'Number of findings dropped by the noise-filter pass (mode: agent with agent.filter_model configured; 0 otherwise).'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

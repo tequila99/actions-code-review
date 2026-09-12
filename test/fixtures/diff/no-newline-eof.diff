@@ -1,0 +1,10 @@
+diff --git a/src/nonewline.ts b/src/nonewline.ts
+index 9999999..aaaaaaa 100644
+--- a/src/nonewline.ts
++++ b/src/nonewline.ts
+@@ -1,2 +1,2 @@
+ const x = 1
+-const y = 2
+\ No newline at end of file
++const y = 3
+\ No newline at end of file

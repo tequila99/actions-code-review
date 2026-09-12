@@ -1,0 +1,8 @@
+diff --git a/notes.txt b/notes.txt
+index a1a1a1a..b2b2b2b 100644
+--- a/notes.txt
++++ b/notes.txt
+@@ -1,2 +1,2 @@
+ # Notes
+--- old dash note
++++ new plus note

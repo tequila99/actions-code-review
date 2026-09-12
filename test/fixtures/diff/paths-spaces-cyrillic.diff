@@ -1,0 +1,8 @@
+diff --git a/src/папка с пробелами/файл.ts b/src/папка с пробелами/файл.ts
+index bbbbbbb..ccccccc 100644
+--- a/src/папка с пробелами/файл.ts
++++ b/src/папка с пробелами/файл.ts
+@@ -1,2 +1,2 @@
+ export const привет = 'старый'
+-export const пока = 'старый2'
++export const пока = 'новый2'
