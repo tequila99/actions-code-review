@@ -570,3 +570,61 @@ test('TD.2: with a responseSchema, the json_object-stage (after a json_schema 40
   // ("file"/"summary" instead of "path"/"message").
   assert.match(systemContentOf(seenBodies[1]), /"ok"/)
 })
+
+const SCHEMA_WITH_OPTIONAL = {
+  type: 'object',
+  properties: {
+    ok: { type: 'boolean' },
+    note: { type: 'string' }
+  },
+  required: ['ok']
+} as const
+
+test('TAD8: json_schema-stage request body carries the OpenAI strict-mode conversion (issue #9)', async () => {
+  const adapter = createAdapter()
+  const seenBodies: unknown[] = []
+  await withMockedFetch(
+    (_url, init) => {
+      seenBodies.push(JSON.parse(String(init?.body)))
+      return jsonResponse({
+        choices: [
+          { message: { role: 'assistant', content: '{"ok":true,"note":null}' }, finish_reason: 'stop' }
+        ]
+      })
+    },
+    () => adapter.complete(baseRequest({ responseSchema: SCHEMA_WITH_OPTIONAL }))
+  )
+  const body = seenBodies[0] as {
+    response_format: { json_schema: { schema: Record<string, unknown> } }
+  }
+  const schema = body.response_format.json_schema.schema
+  assert.equal(schema.additionalProperties, false)
+  assert.deepEqual([...(schema.required as string[])].sort(), ['note', 'ok'])
+  // "note" was optional in the source schema -> widened to a nullable union
+  // rather than being dropped, since strict mode has no optional properties.
+  const noteType = (schema.properties as Record<string, { type: unknown }>).note?.type
+  assert.deepEqual(noteType, ['string', 'null'])
+})
+
+test('TAD9: json_object-stage fallback schema (spelled out in the prompt) stays non-strict — no additionalProperties/null-union noise for models without native strict-mode support', async () => {
+  const adapter = createAdapter()
+  const seenBodies: unknown[] = []
+  await withMockedFetchCounting(
+    (_url, init) => {
+      seenBodies.push(JSON.parse(String(init?.body)))
+      if (seenBodies.length === 1) {
+        return textResponse(
+          '{"error":{"message":"response_format.json_schema is not supported"}}',
+          { status: 400 }
+        )
+      }
+      return jsonResponse({
+        choices: [{ message: { role: 'assistant', content: '{"ok":true}' }, finish_reason: 'stop' }]
+      })
+    },
+    () => adapter.complete(baseRequest({ responseSchema: SCHEMA_WITH_OPTIONAL }))
+  )
+  const systemText = systemContentOf(seenBodies[1])
+  assert.doesNotMatch(systemText, /additionalProperties/)
+  assert.doesNotMatch(systemText, /null/)
+})

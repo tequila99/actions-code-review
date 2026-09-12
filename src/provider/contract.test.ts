@@ -20,6 +20,12 @@ import { AnthropicAdapter } from './anthropic.ts'
 import { OpenAICompatibleAdapter } from './openai-compatible.ts'
 import { withMockedFetch, jsonResponse } from '../../test/helpers/fetch-mock.ts'
 import type { CompletionRequest, ProviderAdapter, ToolSpec } from './types.ts'
+import { normalizeAndValidateFinding } from '../report/findings.ts'
+import { DiffEngine } from '../engine/diff-engine.ts'
+import type { ReviewContext } from '../engine/types.ts'
+import type { DiffFile } from '../github/diff-parse.ts'
+import { makeResolvedConfig } from '../../test/helpers/resolved-config.ts'
+import { createFakeProvider, makeCompletionResponse } from '../../test/helpers/fake-provider.ts'
 
 const READ_FILE_TOOL: ToolSpec = {
   name: 'read_file',
@@ -158,3 +164,69 @@ for (const scenario of scenarios()) {
     )
   })
 }
+
+// ---------------------------------------------------------------------------
+// TAD (issue #9): downstream consumers of FINDINGS_RESPONSE_SCHEMA must
+// tolerate the `null` values toStrictJsonSchema's optional->nullable
+// conversion introduces (`structured-output.ts` produces the schema;
+// `report/findings.ts` and `engine/diff-engine.ts` — outside this package's
+// ownership — consume the model's JSON reply against it). These fix no
+// bugs; they pin down behavior already verified by reading that code.
+// ---------------------------------------------------------------------------
+
+test('TAD10: normalizeAndValidateFinding treats end_line:null (strict-schema optional->nullable conversion) as absent, not invalid', () => {
+  const result = normalizeAndValidateFinding(
+    { path: 'a.ts', line: 3, end_line: null, severity: 'low', category: 'style', message: 'x' },
+    new Set(['a.ts'])
+  )
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal('endLine' in result.finding, false)
+  }
+})
+
+function contractTestFile (path: string): DiffFile {
+  return {
+    path,
+    oldPath: null,
+    status: 'modified',
+    binary: false,
+    hunks: [
+      {
+        oldStart: 1,
+        oldLines: 1,
+        newStart: 1,
+        newLines: 1,
+        lines: [{ type: 'add', content: 'const x = 1', newLineNumber: 1 }]
+      }
+    ]
+  }
+}
+
+test('TAD11: DiffEngine treats summary:null (strict-schema optional->nullable conversion) the same as an absent summary, not a crash', async () => {
+  // `diff-engine.ts`'s per-batch parsing does `typeof obj.summary === 'string' ? obj.summary.trim()
+  // : ''` — a `summary: null` batch response is treated as an empty per-batch summary, exactly
+  // like an absent `summary` key would be, and folds into the same "No issues found." default
+  // (see `defaultSummary` in diff-engine.ts) once the run has zero non-empty batch summaries and
+  // zero findings. Comparing against the absent-key baseline is what actually pins the null
+  // handling down — asserting a literal '' here would instead depend on defaultSummary's wording.
+  const runWith = async (findingsBody: Record<string, unknown>): Promise<string> => {
+    const files = [contractTestFile('src/a.ts')]
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({ text: JSON.stringify(findingsBody) })
+    )
+    const context: ReviewContext = {
+      config: makeResolvedConfig(),
+      provider,
+      target: { files, skipped: [] },
+      pr: { number: 1, title: 'Fix bug', body: 'Description' },
+      signal: new AbortController().signal
+    }
+    const result = await new DiffEngine().review(context)
+    return result.summary
+  }
+
+  const withNullSummary = await runWith({ summary: null, findings: [] })
+  const withAbsentSummary = await runWith({ findings: [] })
+  assert.equal(withNullSummary, withAbsentSummary)
+})

@@ -239,7 +239,8 @@ const ALLOWED_SCHEMA_KEYS = new Set([
   'required',
   'items',
   'enum',
-  'description'
+  'description',
+  'additionalProperties'
 ])
 
 /**
@@ -254,6 +255,13 @@ export function sanitizeJsonSchema (schema: JsonSchema): JsonSchema {
   for (const key of Object.keys(schema)) {
     if (!ALLOWED_SCHEMA_KEYS.has(key)) continue
     const value = schema[key]
+    // `additionalProperties: true` (or any non-boolean-false value) would defeat the
+    // whole point of an allowlisted schema by letting the model attach arbitrary
+    // extra fields — only the strict-mode-required `false` is ever forwarded.
+    if (key === 'additionalProperties') {
+      if (value === false) result[key] = false
+      continue
+    }
     if (key === 'properties' && value !== null && typeof value === 'object') {
       const props: Record<string, unknown> = {}
       for (const [propKey, propSchema] of Object.entries(value as Record<string, unknown>)) {
@@ -270,4 +278,62 @@ export function sanitizeJsonSchema (schema: JsonSchema): JsonSchema {
     }
   }
   return result
+}
+
+/**
+ * Converts a (typically already-sanitized) JSON Schema to the shape OpenAI's
+ * `strict: true` structured-output mode requires (issue #9): every object
+ * node must set `additionalProperties: false` and list *every* key of its
+ * `properties` in `required` — OpenAI's strict mode has no notion of an
+ * optional property. A field that was genuinely optional in the source
+ * schema is preserved as such by widening its `type` to include `'null'`
+ * instead (`type: 'string'` -> `type: ['string', 'null']`), so the model can
+ * satisfy the now-mandatory key by emitting `null`.
+ *
+ * Only applied on the `json_schema`-stage request body
+ * (`openai-compatible.ts#buildRequestBody`) — the `json_object`/`none`
+ * stages describe the schema as plain prompt text instead (`buildSystemContent`)
+ * and deliberately keep it non-strict there: a model without native strict-mode
+ * support has no way to interpret a `[T, 'null']` union type and would likely
+ * just be confused by it.
+ */
+export function toStrictJsonSchema (schema: JsonSchema): JsonSchema {
+  const result: JsonSchema = { ...schema }
+
+  if (result.type === 'object' && result.properties !== null && typeof result.properties === 'object') {
+    const originalRequired = new Set(
+      Array.isArray(result.required) ? (result.required as unknown[]) : []
+    )
+    const props = result.properties as Record<string, JsonSchema>
+    const strictProps: Record<string, JsonSchema> = {}
+    for (const [key, propSchema] of Object.entries(props)) {
+      const strictProp =
+        propSchema !== null && typeof propSchema === 'object'
+          ? toStrictJsonSchema(propSchema)
+          : propSchema
+      strictProps[key] = originalRequired.has(key) ? strictProp : withNullableType(strictProp)
+    }
+    result.properties = strictProps
+    result.required = Object.keys(props)
+    result.additionalProperties = false
+  }
+
+  if (result.items !== null && typeof result.items === 'object') {
+    result.items = toStrictJsonSchema(result.items as JsonSchema)
+  }
+
+  return result
+}
+
+/** Widens `schema.type` to include `'null'`, tolerating both the single-string
+ * and already-array forms and never adding `'null'` twice. */
+function withNullableType (schema: JsonSchema): JsonSchema {
+  const type = schema.type
+  if (Array.isArray(type)) {
+    return type.includes('null') ? schema : { ...schema, type: [...type, 'null'] }
+  }
+  if (typeof type === 'string' && type !== 'null') {
+    return { ...schema, type: [type, 'null'] }
+  }
+  return schema
 }
