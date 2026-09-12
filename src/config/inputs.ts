@@ -99,6 +99,16 @@ function normalizeBaseUrl (url: string): string {
   return url.replace(/\/+$/, '')
 }
 
+/**
+ * Header names that plausibly carry a credential. Deliberately name-based,
+ * not value-based: masking every header value regardless of its name (the
+ * pre-fix behavior) corrupted unrelated log/comment text whenever a
+ * non-secret value happened to match, e.g. a tenant id shared across
+ * headers.
+ */
+const SECRET_HEADER_NAME_PATTERN =
+  /^(authorization|proxy-authorization|x-api-key|api-key|.*[-_](token|secret|key))$/i
+
 /** Parses multiline `Key: Value` headers (FR-4), splitting on the FIRST `:`. */
 function parseApiHeaders (name: string): Record<string, string> {
   const headers: Record<string, string> = {}
@@ -115,9 +125,11 @@ function parseApiHeaders (name: string): Record<string, string> {
       continue
     }
     headers[key] = value
-    // Values (not just the two well-known tokens) may carry a secret, e.g.
-    // an internal gateway's own auth header (PRD §10.3).
-    registerSecret(value)
+    // An internal gateway's own auth header may carry a secret (PRD §10.3),
+    // but only register it when the header NAME itself looks credential-like.
+    if (SECRET_HEADER_NAME_PATTERN.test(key)) {
+      registerSecret(value)
+    }
   }
   return headers
 }
