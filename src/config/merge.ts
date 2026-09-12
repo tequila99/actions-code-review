@@ -143,7 +143,11 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
         file.api?.request_timeout_ms,
         DEFAULTS.request_timeout_ms
       ),
-      total_timeout_ms: inputs.total_timeout_ms,
+      total_timeout_ms: pickScalar(
+        inputs.total_timeout_ms,
+        file.api?.total_timeout_ms,
+        DEFAULTS.total_timeout_ms
+      ),
       headers,
       allow_insecure_base_url: allowInsecureBaseUrl,
       ...(inputs.temperature !== undefined ? { temperature: inputs.temperature } : {})

@@ -177,9 +177,9 @@ test('T1.25: a trailing slash on api_base_url is normalized away', () => {
   })
 })
 
-test('T1.55: total_timeout_ms defaults to 900000 when unset, or uses the provided value', () => {
+test('T1.55: total_timeout_ms is absent when unset (so a file value can win), or uses the provided value', () => {
   withModelAnd({}, () => {
-    assert.equal(readInputs().total_timeout_ms, 900000)
+    assert.equal('total_timeout_ms' in readInputs(), false)
   })
   withModelAnd({ total_timeout_ms: '60000' }, () => {
     assert.equal(readInputs().total_timeout_ms, 60000)

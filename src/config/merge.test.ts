@@ -19,7 +19,6 @@ function baseInputs (overrides: Partial<RawInputs> = {}): RawInputs {
     include: [],
     exclude: [],
     skip_labels: [],
-    total_timeout_ms: 900000,
     ...overrides
   }
 }
@@ -155,6 +154,30 @@ test('T1.61 (merge): api.base_url set in the FILE (http), allow_insecure_base_ur
       return true
     }
   )
+})
+
+// ---------------------------------------------------------------------------
+// TY: api.total_timeout_ms follows the standard input > file > default
+// priority (FR-6) — it must not always come from the input, so a file-only
+// value can actually take effect when the input is unset.
+// ---------------------------------------------------------------------------
+
+test('TY.1: total_timeout_ms set only in the file is honored when the input is unset', () => {
+  const resolved = mergeConfig(baseInputs(), baseFile({ api: { total_timeout_ms: 60000 } }))
+  assert.equal(resolved.api.total_timeout_ms, 60000)
+})
+
+test('TY.2: total_timeout_ms input wins over the file (FR-6)', () => {
+  const resolved = mergeConfig(
+    baseInputs({ total_timeout_ms: 30000 }),
+    baseFile({ api: { total_timeout_ms: 60000 } })
+  )
+  assert.equal(resolved.api.total_timeout_ms, 30000)
+})
+
+test('TY.3: total_timeout_ms set nowhere -> the default', () => {
+  const resolved = mergeConfig(baseInputs(), baseFile())
+  assert.equal(resolved.api.total_timeout_ms, DEFAULTS.total_timeout_ms)
 })
 
 // ---------------------------------------------------------------------------

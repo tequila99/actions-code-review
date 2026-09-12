@@ -2,16 +2,18 @@ import * as core from '@actions/core'
 import { registerSecret } from '../util/secrets.ts'
 import { logger } from '../util/logger.ts'
 import { ConfigError } from '../util/errors.ts'
-import { DEFAULTS, DEFAULT_CONFIG_PATH } from './defaults.ts'
+import { DEFAULT_CONFIG_PATH } from './defaults.ts'
 
 /**
- * Raw values read straight from `core.getInput`/env, with per-field
- * defaults resolved *only* where the plan calls for it (`total_timeout_ms`,
- * `config_path`). Every other optional numeric/boolean/string field is
- * omitted entirely (not set to `undefined`) when the input is an empty
- * string, so `config/merge.ts` can tell "not provided" apart from "provided
- * as the same value as the default" (PRD §9.1: "пустая строка input = не
- * задано").
+ * Raw values read straight from `core.getInput`/env, with a per-field
+ * default resolved *only* where the plan calls for it (`config_path`).
+ * Every other optional numeric/boolean/string field is omitted entirely
+ * (not set to `undefined`) when the input is an empty string, so
+ * `config/merge.ts` can tell "not provided" apart from "provided as the
+ * same value as the default" (PRD §9.1: "пустая строка input = не задано").
+ * `total_timeout_ms` follows this same omit-when-unset rule (rather than
+ * defaulting here) so a `.github/code-review.yml`-only value can win over
+ * the default at merge time (FR-6).
  *
  * NB (FR-10a): `api_base_url` https-vs-insecure validation deliberately
  * does NOT happen here — it happens post-merge in `merge.ts`, because
@@ -29,7 +31,7 @@ export interface RawInputs {
   include: string[]
   exclude: string[]
   skip_labels: string[]
-  total_timeout_ms: number
+  total_timeout_ms?: number
   api_flavor?: 'openai' | 'anthropic' | 'gemini'
   mode?: 'diff' | 'agent' | 'auto'
   max_files?: number
@@ -153,7 +155,6 @@ export function readInputs (): RawInputs {
   const apiHeaders = parseApiHeaders('api_headers')
 
   const rawBaseUrl = trimmedInput('api_base_url')
-  const totalTimeoutMs = optionalNumberInput('total_timeout_ms') ?? DEFAULTS.total_timeout_ms
 
   const result: RawInputs = {
     github_token: githubToken,
@@ -165,9 +166,11 @@ export function readInputs (): RawInputs {
     config_path: trimmedInput('config_path') || DEFAULT_CONFIG_PATH,
     include: multilineInput('include'),
     exclude: multilineInput('exclude'),
-    skip_labels: multilineInput('skip_labels'),
-    total_timeout_ms: totalTimeoutMs
+    skip_labels: multilineInput('skip_labels')
   }
+
+  const totalTimeoutMs = optionalNumberInput('total_timeout_ms')
+  if (totalTimeoutMs !== undefined) result.total_timeout_ms = totalTimeoutMs
 
   const apiFlavor = trimmedInput('api_flavor')
   if (apiFlavor !== '') result.api_flavor = apiFlavor as 'openai' | 'anthropic' | 'gemini'
