@@ -65,8 +65,13 @@ interface AnthropicWireMessage {
 function buildHeaders (apiKey: string, customHeaders: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-api-key': apiKey,
     'anthropic-version': ANTHROPIC_VERSION
+  }
+  // An empty apiKey means auth is delegated to a custom header (e.g. a
+  // gateway that wants Authorization instead of x-api-key, T26) — sending an
+  // empty x-api-key is worse than omitting it, some gateways reject it outright.
+  if (apiKey !== '') {
+    headers['x-api-key'] = apiKey
   }
   for (const [key, value] of Object.entries(customHeaders)) {
     for (const existingKey of Object.keys(headers)) {

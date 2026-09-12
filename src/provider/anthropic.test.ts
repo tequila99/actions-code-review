@@ -345,3 +345,32 @@ test('HTTP 401 is a meaningful, redacted ProviderError about an invalid api_key'
     }
   )
 })
+
+// #26: an empty apiKey must not produce an empty/garbage x-api-key header —
+// some gateways reject an empty header value outright. A custom header
+// supplied via `api.headers` (Authorization or x-api-key) still wins.
+
+test('TAE1: an empty apiKey sends no x-api-key header at all when no custom headers are set', async () => {
+  const { init } = await captureRequest(() => jsonResponse(SUCCESS_FIXTURE), baseRequest(), { apiKey: '' })
+  const headers = new Headers(init?.headers)
+  assert.equal(headers.has('x-api-key'), false)
+})
+
+test('TAE2: a custom x-api-key header wins over an empty apiKey', async () => {
+  const { init } = await captureRequest(() => jsonResponse(SUCCESS_FIXTURE), baseRequest(), {
+    apiKey: '',
+    headers: { 'x-api-key': 'custom-key-from-config' }
+  })
+  const headers = new Headers(init?.headers)
+  assert.equal(headers.get('x-api-key'), 'custom-key-from-config')
+})
+
+test('TAE3: a custom Authorization header is sent alongside a suppressed empty x-api-key', async () => {
+  const { init } = await captureRequest(() => jsonResponse(SUCCESS_FIXTURE), baseRequest(), {
+    apiKey: '',
+    headers: { Authorization: 'Bearer gateway-token' }
+  })
+  const headers = new Headers(init?.headers)
+  assert.equal(headers.has('x-api-key'), false)
+  assert.equal(headers.get('authorization'), 'Bearer gateway-token')
+})
