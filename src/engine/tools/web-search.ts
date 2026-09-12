@@ -25,6 +25,7 @@
  */
 
 import { redact } from '../../util/secrets.ts'
+import { truncate } from './truncate.ts'
 import type { ToolExecutionContext, ToolResult, WebSearchRunContext } from './registry.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 
@@ -96,12 +97,6 @@ function isOpenRouterHost (baseUrl: string): boolean {
   } catch {
     return false
   }
-}
-
-function truncate (content: string, maxBytes: number): string {
-  const buf = Buffer.from(content, 'utf8')
-  if (buf.byteLength <= maxBytes) return content
-  return `${buf.subarray(0, maxBytes).toString('utf8')}\n… (truncated, output exceeded ${maxBytes} bytes)`
 }
 
 interface UrlCitation {

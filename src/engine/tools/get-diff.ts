@@ -7,6 +7,7 @@
  */
 
 import { renderFile } from '../../github/diff-render.ts'
+import { truncate } from './truncate.ts'
 import type { ToolExecutionContext, ToolResult } from './registry.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 
@@ -21,12 +22,6 @@ export const GET_DIFF_SPEC: ToolSpec = {
       path: { type: 'string', description: 'Optional: restrict to a single file\'s diff.' }
     }
   }
-}
-
-function truncate (content: string, maxBytes: number): string {
-  const buf = Buffer.from(content, 'utf8')
-  if (buf.byteLength <= maxBytes) return content
-  return `${buf.subarray(0, maxBytes).toString('utf8')}\n… (truncated, output exceeded ${maxBytes} bytes)`
 }
 
 export async function getDiff (args: unknown, ctx: ToolExecutionContext): Promise<ToolResult> {

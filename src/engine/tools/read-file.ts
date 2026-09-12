@@ -7,6 +7,7 @@
 
 import { readFile as fsReadFile, stat } from 'node:fs/promises'
 import { resolveSandboxPath } from './sandbox.ts'
+import { truncate } from './truncate.ts'
 import type { ToolExecutionContext, ToolResult } from './registry.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 
@@ -43,13 +44,6 @@ function numberLines (content: string, startLine?: number, endLine?: number): st
     out.push(`${i}: ${lines[i - 1] ?? ''}`)
   }
   return out.join('\n')
-}
-
-function truncate (content: string, maxBytes: number): string {
-  const buf = Buffer.from(content, 'utf8')
-  if (buf.byteLength <= maxBytes) return content
-  const truncated = buf.subarray(0, maxBytes).toString('utf8')
-  return `${truncated}\n… (truncated, output exceeded ${maxBytes} bytes)`
 }
 
 export async function readFile (args: unknown, ctx: ToolExecutionContext): Promise<ToolResult> {

@@ -12,6 +12,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { matchesGlob } from './glob-match.ts'
 import { walkWorkspace } from './walk.ts'
+import { truncate } from './truncate.ts'
 import type { ToolExecutionContext, ToolResult } from './registry.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 
@@ -50,12 +51,6 @@ function looksCatastrophic (pattern: string): boolean {
 
 function looksBinary (buffer: Buffer): boolean {
   return buffer.subarray(0, 8000).includes(0)
-}
-
-function truncate (content: string, maxBytes: number): string {
-  const buf = Buffer.from(content, 'utf8')
-  if (buf.byteLength <= maxBytes) return content
-  return `${buf.subarray(0, maxBytes).toString('utf8')}\n… (truncated, output exceeded ${maxBytes} bytes)`
 }
 
 export async function grep (args: unknown, ctx: ToolExecutionContext): Promise<ToolResult> {
