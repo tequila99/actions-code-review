@@ -287,6 +287,24 @@ test('TAC4: withRetry using the real default sleep aborts a pending backoff wait
   assert.ok(Date.now() - start < 1000, 'the pending backoff wait should be cancelled, not waited out')
 })
 
+test('TAC5: a Retry-After far above the cap is clamped to maxDelayMs * 6 (#10b)', async () => {
+  const { sleep, delays } = fakeSleep()
+  let calls = 0
+  await withRetry(
+    async () => {
+      calls++
+      if (calls === 1) {
+        throw new HttpStatusError(429, 'rate limited', { retryAfterMs: 10_000_000 })
+      }
+      return 'ok'
+    },
+    { sleep, maxDelayMs: 10_000 }
+  )
+  assert.equal(delays.length, 1)
+  const [delay] = delays as [number]
+  assert.equal(delay, 60_000)
+})
+
 test('TH.3: repeated TimeoutErrors exhaust the retry budget like any other retryable error', async () => {
   const { sleep } = fakeSleep()
   let calls = 0

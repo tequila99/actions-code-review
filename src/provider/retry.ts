@@ -194,7 +194,14 @@ export async function withRetry<T> (
       const retryAfterMs = err instanceof HttpStatusError ? err.retryAfterMs : undefined
       const backoff = Math.min(maxDelayMs, baseDelayMs * 2 ** (attemptNumber - 1))
       const jitter = backoff * 0.5 * random()
-      const delayMs = Math.max(backoff + jitter, retryAfterMs ?? 0)
+      // A server-supplied `Retry-After` can ask for an arbitrarily long wait
+      // (some providers use it to signal "come back in a while" rather than
+      // a precise rate-limit reset); without a ceiling that value overrides
+      // `maxDelayMs` entirely and can stall the run far longer than intended
+      // (#10b). `maxDelayMs * 6` gives `Retry-After` more headroom than plain
+      // backoff (which never exceeds `maxDelayMs`) while still bounding it —
+      // 60s with the default 10s `maxDelayMs`.
+      const delayMs = Math.min(Math.max(backoff + jitter, retryAfterMs ?? 0), maxDelayMs * 6)
       await sleep(delayMs, signal)
     }
   }
