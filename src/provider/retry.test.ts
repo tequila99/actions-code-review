@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { withRetry, HttpStatusError, RetryExhaustedError } from './retry.ts'
+import { withRetry, HttpStatusError, RetryExhaustedError, defaultSleep } from './retry.ts'
 
 /** Records every delay `withRetry` asked to wait, without ever actually waiting. */
 function fakeSleep (): { sleep: (ms: number) => Promise<void>; delays: number[] } {
@@ -245,6 +245,46 @@ test('TH.2: a TimeoutError is NOT retried when the run-level signal is aborted c
     (err: unknown) => err instanceof Error && err.name === 'TimeoutError'
   )
   assert.equal(calls, 1)
+})
+
+test('TAC1: defaultSleep resolves after the delay when not aborted (#10a)', async () => {
+  const start = Date.now()
+  await defaultSleep(20)
+  assert.ok(Date.now() - start >= 15, 'defaultSleep should wait roughly the requested duration')
+})
+
+test('TAC2: defaultSleep rejects immediately with signal.reason when the signal is already aborted (#10a)', async () => {
+  const controller = new AbortController()
+  const reason = new Error('already aborted')
+  controller.abort(reason)
+  await assert.rejects(() => defaultSleep(1000, controller.signal), (err: unknown) => err === reason)
+})
+
+test('TAC3: defaultSleep rejects with signal.reason as soon as the signal aborts mid-wait (#10a)', async () => {
+  const controller = new AbortController()
+  const reason = new Error('aborted mid-wait')
+  const start = Date.now()
+  setTimeout(() => controller.abort(reason), 10)
+  await assert.rejects(() => defaultSleep(10_000, controller.signal), (err: unknown) => err === reason)
+  assert.ok(Date.now() - start < 1000, 'abort should cancel the pending timer, not wait out the full delay')
+})
+
+test('TAC4: withRetry using the real default sleep aborts a pending backoff wait as soon as the run-level signal fires (#10a)', async () => {
+  const controller = new AbortController()
+  const reason = new Error('run budget expired')
+  let calls = 0
+  const start = Date.now()
+  const promise = withRetry(
+    async () => {
+      calls++
+      throw new HttpStatusError(503, 'unavailable')
+    },
+    { signal: controller.signal, baseDelayMs: 10_000, maxAttempts: 5 }
+  )
+  setTimeout(() => controller.abort(reason), 10)
+  await assert.rejects(() => promise, (err: unknown) => err === reason)
+  assert.equal(calls, 1)
+  assert.ok(Date.now() - start < 1000, 'the pending backoff wait should be cancelled, not waited out')
 })
 
 test('TH.3: repeated TimeoutErrors exhaust the retry budget like any other retryable error', async () => {
