@@ -24,6 +24,48 @@ function statusOf (error: unknown): number | undefined {
   return typeof error === 'object' && error !== null ? (error as HttpErrorLike).status : undefined
 }
 
+/** The slice of an Octokit `RequestError` this module cares about: GitHub's
+ * per-field validation detail for a rejected `createReview` call. */
+interface RequestErrorLike {
+  response?: {
+    data?: {
+      errors?: unknown[]
+    }
+  }
+}
+
+function errorDetailMessage (detail: unknown): string | null {
+  if (typeof detail === 'string') return detail
+  if (typeof detail === 'object' && detail !== null && 'message' in detail) {
+    const message = (detail as { message?: unknown }).message
+    return typeof message === 'string' ? message : null
+  }
+  return null
+}
+
+/**
+ * Best-effort extraction of which (path, line) GitHub blamed for a 422,
+ * from Octokit's `RequestError.response.data.errors[]`. GitHub does not
+ * document or guarantee this message format — this is a heuristic that
+ * only recognizes a `path:line` substring (e.g. `src/a.ts:12`), same shape
+ * as a `finding.path`/comment `line`. A bare `position` mention (GitHub's
+ * other common wording) carries no path and can't be mapped back to a
+ * specific comment, so it's deliberately left unrecognized rather than
+ * guessed at.
+ */
+function extractBlamedPositions (error: unknown): Array<{ path: string; line: number }> {
+  const errors = (error as RequestErrorLike).response?.data?.errors
+  if (!Array.isArray(errors)) return []
+  const blamed: Array<{ path: string; line: number }> = []
+  for (const detail of errors) {
+    const message = errorDetailMessage(detail)
+    if (message === null) continue
+    const match = /([^\s:]+\.\w+):(\d+)/.exec(message)
+    if (match) blamed.push({ path: match[1]!, line: Number(match[2]) })
+  }
+  return blamed
+}
+
 /**
  * Builds the text body of one inline review comment: a severity/category
  * header, the (redacted) message, an optional literal code-suggestion
@@ -203,6 +245,44 @@ export async function publishReview (
       )
     }
     if (status === 422) {
+      const blamed = extractBlamedPositions(error)
+      const excluded: Finding[] = []
+      const retryValid = valid.filter((v) => {
+        const isBlamed = blamed.some((b) => b.path === v.comment.path && b.line === v.comment.line)
+        if (isBlamed) excluded.push(v.finding)
+        return !isBlamed
+      })
+
+      // Only worth a retry if the error text actually let us drop at least
+      // one comment — otherwise a second call would fail the same way.
+      if (excluded.length > 0 && retryValid.length > 0) {
+        try {
+          const retryRes = await client.rest.pulls.createReview({
+            owner: params.owner,
+            repo: params.repo,
+            pull_number: params.prNumber,
+            event: 'COMMENT',
+            body: params.body ?? '',
+            comments: retryValid.map((v) => v.comment)
+          })
+          const retryData = retryRes.data as { id?: number }
+          logger.warning(
+            'pulls.createReview was rejected with 422; retried once after dropping ' +
+              `${excluded.length} comment(s) GitHub named as the problem.`
+          )
+          return {
+            reviewId: typeof retryData.id === 'number' ? retryData.id : null,
+            postedFindings: retryValid.map((v) => v.finding),
+            unpostedFindings: [...invalid, ...excluded],
+            fallbackToSummaryOnly: false
+          }
+        } catch (retryError) {
+          if (statusOf(retryError) !== 422) throw retryError
+          // Retry still rejected -> give up on identifying the culprit and
+          // fall through to the summary-only fallback below.
+        }
+      }
+
       logger.warning(
         'pulls.createReview was rejected with 422 (a comment likely pointed outside the diff); ' +
           'falling back to a summary-only comment with every finding listed as text (§7.5 layer 3).'

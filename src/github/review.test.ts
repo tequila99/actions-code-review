@@ -162,6 +162,109 @@ test('T5.5: createReview 422 -> fallback, no throw, all findings reported unpost
   assert.equal(result.unpostedFindings.length, 2)
 })
 
+test('TAA2: createReview 422 naming one comment by path:line -> that comment is dropped and createReview is retried exactly once', async () => {
+  const client = createOctokitMock()
+  let calls = 0
+  client.rest.pulls.createReview.mock.mockImplementation(async () => {
+    calls++
+    if (calls === 1) {
+      throw Object.assign(new Error('Unprocessable Entity'), {
+        status: 422,
+        response: {
+          data: {
+            errors: [{ message: 'Validation failed: a.ts:3 is not part of the diff' }]
+          }
+        }
+      })
+    }
+    return { data: { id: 77 } }
+  })
+  const positionMap = samplePositionMap()
+  const blamed = finding({ line: 3, message: 'blamed finding' })
+  const clean = finding({ line: 2, message: 'clean finding' })
+  const findings = [clean, blamed]
+
+  const result = await publishReview(client, {
+    ...baseParams,
+    findings,
+    positionMap,
+    dryRun: false
+  })
+
+  assert.equal(client.rest.pulls.createReview.mock.calls.length, 2)
+  const secondCall = client.rest.pulls.createReview.mock.calls[1]!.arguments[0] as {
+    comments: RawComment[]
+  }
+  assert.equal(secondCall.comments.length, 1)
+  assert.equal(secondCall.comments[0]!.line, 2)
+  assert.equal(result.reviewId, 77)
+  assert.equal(result.fallbackToSummaryOnly, false)
+  assert.ok(!result.postedFindings.includes(blamed))
+  assert.ok(result.postedFindings.includes(clean))
+  assert.ok(result.unpostedFindings.includes(blamed))
+  assert.ok(!result.unpostedFindings.includes(clean))
+})
+
+test('TAA3: createReview 422 with an unrecognizable error body -> old fallback, no retry', async () => {
+  const client = createOctokitMock()
+  client.rest.pulls.createReview.mock.mockImplementation(async () => {
+    throw Object.assign(new Error('Unprocessable Entity'), {
+      status: 422,
+      response: {
+        data: {
+          // A non-object, non-string entry (some GitHub error payloads mix
+          // shapes) must be skipped rather than throwing.
+          errors: [42, { message: 'Something went wrong, no idea which comment' }]
+        }
+      }
+    })
+  })
+  const positionMap = samplePositionMap()
+  const findings = [finding({ line: 2 }), finding({ line: 3 })]
+
+  const result = await publishReview(client, {
+    ...baseParams,
+    findings,
+    positionMap,
+    dryRun: false
+  })
+
+  assert.equal(client.rest.pulls.createReview.mock.calls.length, 1)
+  assert.equal(result.fallbackToSummaryOnly, true)
+  assert.equal(result.reviewId, null)
+  assert.equal(result.postedFindings.length, 0)
+  assert.equal(result.unpostedFindings.length, 2)
+})
+
+test('TAA3b: createReview 422 twice in a row (retry also rejected) -> falls back, no throw', async () => {
+  const client = createOctokitMock()
+  client.rest.pulls.createReview.mock.mockImplementation(async () => {
+    throw Object.assign(new Error('Unprocessable Entity'), {
+      status: 422,
+      response: {
+        data: {
+          errors: [{ message: 'Validation failed: a.ts:3 is not part of the diff' }]
+        }
+      }
+    })
+  })
+  const positionMap = samplePositionMap()
+  const findings = [finding({ line: 2 }), finding({ line: 3 })]
+
+  const result = await publishReview(client, {
+    ...baseParams,
+    findings,
+    positionMap,
+    dryRun: false
+  })
+
+  assert.equal(client.rest.pulls.createReview.mock.calls.length, 2)
+  assert.equal(result.fallbackToSummaryOnly, true)
+  assert.equal(result.reviewId, null)
+  assert.equal(result.postedFindings.length, 0)
+  assert.equal(result.unpostedFindings.length, 2)
+})
+
 test('T5.6: createReview 403 -> a clear GithubApiError mentioning pull-requests: write', async () => {
   const client = createOctokitMock()
   client.rest.pulls.createReview.mock.mockImplementation(async () => {
