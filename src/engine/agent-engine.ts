@@ -15,7 +15,7 @@ import { buildToolRegistry, type ToolRegistry, type ToolExecutionContext } from 
 import { createCommentAccumulator } from './tools/post-comment.ts'
 import { createWebSearchCallBudget } from './tools/web-search.ts'
 import { buildAgentSystemPrompt } from './prompt/agent-system.ts'
-import { sanitizeUntrustedText } from './prompt/diff-user.ts'
+import { sanitizeUntrustedText, UNTRUSTED_OPEN, UNTRUSTED_CLOSE } from './prompt/diff-user.ts'
 import type {
   Finding,
   ReviewContext,
@@ -190,6 +190,20 @@ function buildInitialUserMessage (pr: ReviewPullRequestInfo, target: ReviewTarge
       'enough context. Call post_comment for every finding, then call finish when the review is complete.'
   )
   return parts.join('\n')
+}
+
+/**
+ * SEC-2: every tool result reaches the model as a `role: 'tool'` message, and any of them can
+ * carry attacker-influenced content (a file's own text via read_file/grep, a repo path via
+ * list_files/get_diff, a third-party page via web_search) — the same threat `buildInitialUserMessage`
+ * addresses for the PR title/body/paths. Wrapping happens once, here, for every tool regardless of
+ * `isError` (an error message can quote back attacker-controlled input just as easily as a
+ * success), rather than in each tool module — `web_search` used to wrap its own output and nothing
+ * else did, which stopped being an option once every tool needed the same treatment (a second
+ * wrap would be visible to the model as a nested, and therefore trivially confusing, boundary).
+ */
+function wrapToolResult (content: string): string {
+  return `${UNTRUSTED_OPEN}\n${sanitizeUntrustedText(content)}\n${UNTRUSTED_CLOSE}`
 }
 
 function callSignature (toolCalls: readonly ToolCall[]): string {
@@ -592,7 +606,7 @@ export class AgentEngine implements ReviewEngine {
             `arguments=${truncateForLog(JSON.stringify(call.arguments ?? {}))}, ` +
             `result=${truncateForLog(content)}`
         )
-        messages.push({ role: 'tool', content, toolCallId: call.id, name: call.name })
+        messages.push({ role: 'tool', content: wrapToolResult(content), toolCallId: call.id, name: call.name })
       }
       if (toolCallLimitHit) break
 

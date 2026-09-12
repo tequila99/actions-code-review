@@ -15,12 +15,13 @@
  * and can be influenced by a malicious PR (THR-3), so it's the one place in
  * this codebase where untrusted content leaves the process. Mitigated by:
  * being opt-in/off-by-default, a per-run call cap independent of
- * `agent_max_tool_calls` (`WebSearchCallBudget`), `redact()` on the outgoing
- * query (strips only the two known credential strings verbatim — NOT a
- * general secrets/exfiltration scrubber), and wrapping the result in
- * `<untrusted_content>` (a deliberate deviation from every other tool here,
- * none of which literally wrap their own output today — this is the first
- * tool whose output is third-party content).
+ * `agent_max_tool_calls` (`WebSearchCallBudget`), and `redact()` on the
+ * outgoing query (strips only the two known credential strings verbatim —
+ * NOT a general secrets/exfiltration scrubber). SEC-2: this result used to
+ * wrap itself in `<untrusted_content>` — that became a double wrap once
+ * `agent-engine.ts` started wrapping every tool result uniformly, so this
+ * returns the plain answer text and leaves the wrapping (and sanitizing) to
+ * the caller, like every other tool here.
  */
 
 import { redact } from '../../util/secrets.ts'
@@ -138,7 +139,7 @@ function formatResult (text: string, citations: UrlCitation[]): string {
     parts.push('Sources:')
     parts.push(...citations.map((c) => (c.title ? `- ${c.title}: ${c.url}` : `- ${c.url}`)))
   }
-  return `<untrusted_content>\n${parts.join('\n')}\n</untrusted_content>`
+  return parts.join('\n')
 }
 
 function buildHeaders (apiKey: string, extraHeaders: Record<string, string>): Record<string, string> {
