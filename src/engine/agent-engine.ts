@@ -15,6 +15,7 @@ import { buildToolRegistry, type ToolRegistry, type ToolExecutionContext } from 
 import { createCommentAccumulator } from './tools/post-comment.ts'
 import { createWebSearchCallBudget } from './tools/web-search.ts'
 import { buildAgentSystemPrompt } from './prompt/agent-system.ts'
+import { sanitizeUntrustedText } from './prompt/diff-user.ts'
 import type {
   Finding,
   ReviewContext,
@@ -146,13 +147,18 @@ function changeSummary (file: DiffFile): string {
  * "this file is not in the PR" and contradicted what it had inferred from the diff.
  *
  * SEC-1: paths come from the PR just like the title/body, so they go inside `<untrusted_content>`.
+ * SEC-2: title/body/path/reason all pass through `sanitizeUntrustedText` first — a title
+ * containing a literal `</untrusted_content>` must not be able to forge the closing tag and
+ * smuggle its own "instructions" out into trusted territory.
  */
 function buildInitialUserMessage (pr: ReviewPullRequestInfo, target: ReviewTarget): string {
+  const title = sanitizeUntrustedText(pr.title)
+  const body = sanitizeUntrustedText(pr.body ?? '(no description provided)')
   const parts = [
     'Pull request under review:',
     '<untrusted_content>',
-    `Title: ${pr.title}`,
-    `Description: ${pr.body ?? '(no description provided)'}`,
+    `Title: ${title}`,
+    `Description: ${body}`,
     '</untrusted_content>'
   ]
 
@@ -160,7 +166,7 @@ function buildInitialUserMessage (pr: ReviewPullRequestInfo, target: ReviewTarge
     parts.push(
       `Files in the review scope (${target.files.length}) — get_diff accepts exactly these paths:`,
       '<untrusted_content>',
-      ...target.files.map((file) => `${file.path} (${changeSummary(file)})`),
+      ...target.files.map((file) => `${sanitizeUntrustedText(file.path)} (${changeSummary(file)})`),
       '</untrusted_content>'
     )
   }
@@ -173,7 +179,7 @@ function buildInitialUserMessage (pr: ReviewPullRequestInfo, target: ReviewTarge
         'review scope. get_diff will refuse them — read_file still works, since they are present ' +
         'in the checkout. Do not spend tool calls rediscovering this:',
       '<untrusted_content>',
-      ...listed.map((file) => `${file.path} — ${file.reason}`),
+      ...listed.map((file) => `${sanitizeUntrustedText(file.path)} — ${sanitizeUntrustedText(file.reason)}`),
       ...(remaining > 0 ? [`… and ${remaining} more file(s), same reason(s)`] : []),
       '</untrusted_content>'
     )
