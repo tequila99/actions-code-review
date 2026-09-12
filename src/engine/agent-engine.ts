@@ -9,6 +9,7 @@
 
 import { logger, debugLog, truncateForLog } from '../util/logger.ts'
 import { estimateCost, isBudgetTrackable, toPricing } from '../report/cost.ts'
+import { defaultSummary } from '../report/findings.ts'
 import { filterNoise } from './noise-filter.ts'
 import type { ChatMessage, CompletionResponse, ToolCall, ToolSpec } from '../provider/types.ts'
 import { buildToolRegistry, type ToolRegistry, type ToolExecutionContext } from './tools/registry.ts'
@@ -17,7 +18,6 @@ import { createWebSearchCallBudget } from './tools/web-search.ts'
 import { buildAgentSystemPrompt } from './prompt/agent-system.ts'
 import { sanitizeUntrustedText, UNTRUSTED_OPEN, UNTRUSTED_CLOSE } from './prompt/diff-user.ts'
 import type {
-  Finding,
   ReviewContext,
   ReviewEngine,
   ReviewResult,
@@ -115,11 +115,6 @@ const REPEAT_ABORT_THRESHOLD = 5
  * a larger budget resolves most of these; if the retry is *also* empty, that's reported as
  * `response_truncated` rather than silently treated as "nothing to review". */
 const TRUNCATED_RESPONSE_RETRY_MULTIPLIER = 2
-
-function defaultSummary (findings: readonly Finding[]): string {
-  if (findings.length === 0) return 'No issues found.'
-  return `Found ${findings.length} issue(s) across the reviewed files.`
-}
 
 /** How many out-of-scope paths the opening inventory spells out before collapsing the rest into a
  * count. The in-scope list is already bounded by `filters.max_files`; the dropped list is not — a

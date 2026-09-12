@@ -50579,6 +50579,10 @@ var VALID_SEVERITIES = /* @__PURE__ */ new Set(["high", "medium", "low", "info"]
 function isPlainObject4(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+function defaultSummary(findings) {
+  if (findings.length === 0) return "No issues found.";
+  return `Found ${findings.length} issue(s) across the reviewed files.`;
+}
 function normalizeAndValidateFinding(raw, validPaths) {
   if (!isPlainObject4(raw)) {
     return { ok: false, reason: "finding is not a JSON object" };
@@ -50910,10 +50914,6 @@ function estimateFixedContextTokens(pathInstructions, contextText) {
   const instructionsText = pathInstructions.map((instruction) => instruction.instructions).join("\n");
   return estimateTokens(`${instructionsText}
 ${contextText}`);
-}
-function defaultSummary(findings) {
-  if (findings.length === 0) return "No issues found.";
-  return `Found ${findings.length} issue(s) across the reviewed files.`;
 }
 var DiffEngine = class {
   name = "diff";
@@ -51882,10 +51882,6 @@ function wrapUpNudge(reason) {
 var REPEAT_WARNING_THRESHOLD = 3;
 var REPEAT_ABORT_THRESHOLD = 5;
 var TRUNCATED_RESPONSE_RETRY_MULTIPLIER = 2;
-function defaultSummary2(findings) {
-  if (findings.length === 0) return "No issues found.";
-  return `Found ${findings.length} issue(s) across the reviewed files.`;
-}
 var MAX_LISTED_SKIPPED_FILES = 40;
 function changeSummary(file2) {
   let added = 0;
@@ -52319,7 +52315,7 @@ var AgentEngine = class {
       if (filterResult.note) notes.push(filterResult.note);
     }
     return {
-      summary: summary2 !== "" ? summary2 : defaultSummary2(finalFindings),
+      summary: summary2 !== "" ? summary2 : defaultSummary(finalFindings),
       findings: [...finalFindings],
       usage: {
         promptTokens,

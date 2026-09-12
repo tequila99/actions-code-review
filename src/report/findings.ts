@@ -17,6 +17,12 @@ function isPlainObject (value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
+/** Shared by both engines for the "the model returned no summary text" case. */
+export function defaultSummary (findings: readonly Finding[]): string {
+  if (findings.length === 0) return 'No issues found.'
+  return `Found ${findings.length} issue(s) across the reviewed files.`
+}
+
 /**
  * Validates and normalizes one raw finding object against `validPaths` (the
  * set of file paths that were actually part of the batch sent to the model —

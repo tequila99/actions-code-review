@@ -15,7 +15,7 @@ import { estimateTokens } from '../provider/token-estimate.ts'
 import { estimateCost, isBudgetTrackable, toPricing } from '../report/cost.ts'
 import type { TokenUsage } from '../provider/types.ts'
 import type { DiffFile } from '../github/diff-parse.ts'
-import { normalizeFindings } from '../report/findings.ts'
+import { defaultSummary, normalizeFindings } from '../report/findings.ts'
 import { planBatches } from './token-budget.ts'
 import { buildSystemPrompt, FINDINGS_RESPONSE_SCHEMA } from './prompt/system.ts'
 import {
@@ -36,11 +36,6 @@ function estimateFixedContextTokens (
     .map((instruction) => instruction.instructions)
     .join('\n')
   return estimateTokens(`${instructionsText}\n${contextText}`)
-}
-
-function defaultSummary (findings: readonly Finding[]): string {
-  if (findings.length === 0) return 'No issues found.'
-  return `Found ${findings.length} issue(s) across the reviewed files.`
 }
 
 interface BatchOutcome {
