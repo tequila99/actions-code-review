@@ -5,8 +5,10 @@ import {
   extractStickyState,
   upsertStickyComment,
   buildStickyBody,
+  buildStateBlock,
   STICKY_MARKER,
-  STICKY_HISTORY_MAX_ENTRIES
+  STICKY_HISTORY_MAX_ENTRIES,
+  GITHUB_COMMENT_MAX_CHARS
 } from './sticky-comment.ts'
 import { ENTRY_START, ENTRY_END } from '../report/format.ts'
 import { logger } from '../util/logger.ts'
@@ -284,7 +286,37 @@ test('TC.2: existing body with 1 valid entry -> 2 entries in the result, the new
   assert.ok(newIndex < oldIndex, 'the new entry must come before the old one')
 })
 
-test('TC.3: existing body with exactly STICKY_HISTORY_MAX_ENTRIES entries -> still exactly that many after adding a new one, oldest dropped, truncation note present', () => {
+test('TC.3: existing body with exactly STICKY_HISTORY_MAX_ENTRIES entries -> still exactly that many after adding a new one, oldest dropped, truncation note present (ru)', () => {
+  const existingEntries = Array.from({ length: STICKY_HISTORY_MAX_ENTRIES }, (_, i) =>
+    fakeEntry(`old-${i}`)
+  )
+  const existingBody =
+    `${STICKY_MARKER}\n\n## AI Code Review — History\n\n` + existingEntries.join('\n\n')
+
+  const body = buildStickyBody(existingBody, fakeEntry('new'), STICKY_HISTORY_MAX_ENTRIES, 'ru')
+
+  assert.equal(countEntries(body), STICKY_HISTORY_MAX_ENTRIES)
+  assert.ok(body.includes('Review #new'))
+  // The very last (oldest) of the original entries must have been dropped.
+  assert.ok(!body.includes(`Review #old-${STICKY_HISTORY_MAX_ENTRIES - 1}`))
+  assert.ok(body.includes('Review #old-0'))
+  assert.match(body, /Показаны последние 20 прогонов/)
+})
+
+test('TAB4: truncation note in a non-ru language is English, no Cyrillic', () => {
+  const existingEntries = Array.from({ length: STICKY_HISTORY_MAX_ENTRIES }, (_, i) =>
+    fakeEntry(`old-${i}`)
+  )
+  const existingBody =
+    `${STICKY_MARKER}\n\n## AI Code Review — History\n\n` + existingEntries.join('\n\n')
+
+  const body = buildStickyBody(existingBody, fakeEntry('new'), STICKY_HISTORY_MAX_ENTRIES, 'en')
+
+  assert.match(body, /Showing the last 20 runs/)
+  assert.doesNotMatch(body, /[а-яё]/i)
+})
+
+test('TAB5: truncation note defaults to English when language is omitted', () => {
   const existingEntries = Array.from({ length: STICKY_HISTORY_MAX_ENTRIES }, (_, i) =>
     fakeEntry(`old-${i}`)
   )
@@ -293,12 +325,10 @@ test('TC.3: existing body with exactly STICKY_HISTORY_MAX_ENTRIES entries -> sti
 
   const body = buildStickyBody(existingBody, fakeEntry('new'))
 
-  assert.equal(countEntries(body), STICKY_HISTORY_MAX_ENTRIES)
-  assert.ok(body.includes('Review #new'))
-  // The very last (oldest) of the original entries must have been dropped.
-  assert.ok(!body.includes(`Review #old-${STICKY_HISTORY_MAX_ENTRIES - 1}`))
-  assert.ok(body.includes('Review #old-0'))
-  assert.match(body, /Показаны последние 20 прогонов/)
+  assert.match(body, /Showing the last 20 runs/)
+  // The "AI Code Review — History" header is a stable, unparsed English
+  // marker regardless of language (never translated).
+  assert.match(body, /## AI Code Review — History/)
 })
 
 test('TC.4: existing body without a single entry marker (old flat format) -> treated as 0 entries, result has exactly 1 (the new one)', () => {
@@ -315,4 +345,78 @@ test('TC.5: corrupted/unclosed entry marker (opening delimiter with no closing o
   assert.equal(countEntries(body), 1)
   assert.ok(body.includes('Review #new'))
   assert.ok(!body.includes('Review #broken'))
+})
+
+// ---------------------------------------------------------------------------
+// #8: `GITHUB_COMMENT_MAX_CHARS` cap - the state block must always survive,
+// oldest history entries are dropped first, and only the single remaining
+// entry's own bulkiest optional sections get trimmed as a last resort.
+// ---------------------------------------------------------------------------
+
+/** A history entry padded to roughly `sizeBytes`, for exercising the char-budget cap. */
+function bigFakeEntry (id: string, sizeBytes: number): string {
+  return `${ENTRY_START}\n### Review #${id}\n${'x'.repeat(sizeBytes)}\n${ENTRY_END}`
+}
+
+test('TAB6: 20 history entries of ~5KB each + a new entry -> final body stays under the GitHub comment limit, state block preserved', () => {
+  const existingEntries = Array.from({ length: 20 }, (_, i) => bigFakeEntry(`old-${i}`, 5000))
+  const existingBody =
+    `${STICKY_MARKER}\n\n## AI Code Review — History\n\n` + existingEntries.join('\n\n')
+  const stateBlock = buildStateBlock({ last_reviewed_sha: 'deadbeef', version: 1 })
+
+  const body = buildStickyBody(
+    existingBody,
+    bigFakeEntry('new', 5000),
+    STICKY_HISTORY_MAX_ENTRIES,
+    'en',
+    stateBlock
+  )
+
+  assert.ok(body.length < GITHUB_COMMENT_MAX_CHARS, `body length was ${body.length}`)
+  assert.ok(body.includes(stateBlock))
+})
+
+test('TAB7: a single entry alone exceeds the char budget -> its Findings/Notes sections are trimmed, entry stays well-formed', () => {
+  const findingLines = Array.from({ length: 3000 }, (_, i) => `- finding number ${i} `.padEnd(30, 'x'))
+  const noteLines = Array.from({ length: 3000 }, (_, i) => `- note number ${i} `.padEnd(30, 'x'))
+  const hugeEntry = [
+    ENTRY_START,
+    '',
+    '### Review #1 — 2026-01-01',
+    '',
+    '- **Mode:** diff',
+    '',
+    '### Findings not posted inline',
+    ...findingLines,
+    '',
+    '### Notes',
+    ...noteLines,
+    '',
+    ENTRY_END
+  ].join('\n')
+  const stateBlock = buildStateBlock({ last_reviewed_sha: 'deadbeef', version: 1 })
+
+  const body = buildStickyBody(null, hugeEntry, STICKY_HISTORY_MAX_ENTRIES, 'en', stateBlock)
+
+  assert.ok(body.length < GITHUB_COMMENT_MAX_CHARS, `body length was ${body.length}`)
+  assert.equal(countEntries(body), 1)
+  assert.ok(body.includes(stateBlock))
+})
+
+test('TAB8: buildStickyBody without a stateBlock arg behaves exactly as before (no budget cap kicks in unnecessarily)', () => {
+  const body = buildStickyBody(null, fakeEntry('new'))
+  assert.equal(countEntries(body), 1)
+  assert.ok(body.includes(STICKY_MARKER))
+})
+
+test('TAB9: a single oversized entry with no Findings/Notes sections to trim -> hard-truncated before the closing delimiter, still well-formed', () => {
+  const stateBlock = buildStateBlock({ last_reviewed_sha: 'deadbeef', version: 1 })
+  const hugeEntry = `${ENTRY_START}\n### Review #1\n${'x'.repeat(200000)}\n${ENTRY_END}`
+
+  const body = buildStickyBody(null, hugeEntry, STICKY_HISTORY_MAX_ENTRIES, 'en', stateBlock)
+
+  assert.ok(body.length < GITHUB_COMMENT_MAX_CHARS, `body length was ${body.length}`)
+  assert.equal(countEntries(body), 1)
+  assert.ok(body.includes(stateBlock))
+  assert.match(body, /trimmed: exceeds the GitHub comment length limit/)
 })

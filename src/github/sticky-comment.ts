@@ -134,6 +134,68 @@ export function buildStateBlock (state: StickyCommentState): string {
 }
 
 /**
+ * GitHub's hard limit on an issue/PR comment body (undocumented in the REST
+ * API reference but enforced server-side): a comment at or above this many
+ * characters is rejected outright, so the sticky comment must stay under it
+ * however much history has accumulated (#8).
+ */
+export const GITHUB_COMMENT_MAX_CHARS = 65536
+
+function buildHistorySection (entries: readonly string[]): string {
+  return `${STICKY_MARKER}\n\n## AI Code Review — History\n\n${entries.join('\n\n')}`
+}
+
+function historyTruncationNote (language: string, shownEntries: number): string {
+  return language === 'ru'
+    ? `\n\n_Показаны последние ${shownEntries} прогонов; более старые записи скрыты ` +
+        '(полная история — в комментариях к review на GitHub)._'
+    : `\n\n_Showing the last ${shownEntries} runs; older entries are hidden ` +
+        '(the full history is in the review comments on GitHub)._'
+}
+
+function charBudgetTrimNote (language: string): string {
+  return language === 'ru'
+    ? '\n\n_(запись обрезана: превышен лимит GitHub на длину комментария)_'
+    : '\n\n_(entry trimmed: exceeds the GitHub comment length limit)_'
+}
+
+/**
+ * Section headings whose content is the bulkiest and least essential part of
+ * a history entry (the headline metrics above them always survive) — the
+ * first place `trimEntryToBudget` cuts into when even a single entry alone
+ * doesn't fit `GITHUB_COMMENT_MAX_CHARS`.
+ */
+const FINDINGS_SECTION_PATTERN =
+  /\n\n### Findings not posted inline\n[\s\S]*?(?=\n\n### |\n\n<!-- \/actions-code-review:entry -->|$)/
+const NOTES_SECTION_PATTERN =
+  /\n\n### Notes\n[\s\S]*?(?=\n\n### |\n\n<!-- \/actions-code-review:entry -->|$)/
+
+/**
+ * #8: when the single most recent entry alone still doesn't fit `budget`
+ * (chars), strip its "Findings not posted inline"/"Notes" sections in turn
+ * before ever hard-truncating entry text — those two are markdown lists that
+ * scale with finding count, unlike the fixed-size metrics header above them.
+ * If that still isn't enough (e.g. one enormous suggestion diff), the entry
+ * is hard-truncated right before its closing delimiter so it stays
+ * well-formed for `buildStickyBody`'s own `ENTRY_START...ENTRY_END` scan on
+ * the next run.
+ */
+function trimEntryToBudget (entry: string, budget: number, language: string): string {
+  if (entry.length <= budget) return entry
+
+  const note = charBudgetTrimNote(language)
+  let trimmed = entry.replace(FINDINGS_SECTION_PATTERN, note)
+  if (trimmed.length <= budget) return trimmed
+
+  trimmed = trimmed.replace(NOTES_SECTION_PATTERN, note)
+  if (trimmed.length <= budget) return trimmed
+
+  const closing = `${note}\n\n${ENTRY_END}`
+  const keep = Math.max(0, budget - closing.length)
+  return `${trimmed.slice(0, keep)}${closing}`
+}
+
+/**
  * Builds the full sticky-comment body as a capped, newest-first history of
  * run entries (Дополнение C), replacing the old "fully overwritten every
  * run" behaviour.
@@ -147,25 +209,59 @@ export function buildStateBlock (state: StickyCommentState): string {
  *
  * `newEntryMarkdown` is prepended (newest first), the combined list is
  * capped to `maxEntries`, and — only when entries were actually dropped — a
- * truncation note is appended after the entries.
+ * truncation note is appended after the entries, in the given `language`
+ * (defaults to English; `'ru'` gets a Russian translation — this is a
+ * user-facing PR comment, so it follows `review.language`, unlike the
+ * `## AI Code Review — History` heading above it, which stays English on
+ * purpose as a stable marker for humans/parsing).
+ *
+ * #8: `stateBlock` (pass `buildStateBlock(state)`, empty string when the
+ * caller doesn't need the budget check at all) is appended to the result and
+ * always fully preserved — it drives incremental review (§7.3), so it must
+ * never be the thing trimmed away. Oldest history entries are dropped first
+ * to make room under `GITHUB_COMMENT_MAX_CHARS`; only once a single entry
+ * remains and still doesn't fit does `trimEntryToBudget` cut into that
+ * entry's own optional sections.
  */
 export function buildStickyBody (
   existingBody: string | null,
   newEntryMarkdown: string,
-  maxEntries: number = STICKY_HISTORY_MAX_ENTRIES
+  maxEntries: number = STICKY_HISTORY_MAX_ENTRIES,
+  language: string = 'en',
+  stateBlock: string = ''
 ): string {
   const entryPattern = new RegExp(`${ENTRY_START}.*?${ENTRY_END}`, 'gs')
   const existingEntries = (existingBody ?? '').match(entryPattern) ?? []
 
   const allEntries = [newEntryMarkdown, ...existingEntries]
-  const entries = allEntries.slice(0, maxEntries)
+  let entries = allEntries.slice(0, maxEntries)
+  const droppedByCap = allEntries.length > maxEntries
 
-  let body = `${STICKY_MARKER}\n\n## AI Code Review — History\n\n${entries.join('\n\n')}`
+  // -1 so the final body (history + \n\n + stateBlock) lands strictly under
+  // GITHUB_COMMENT_MAX_CHARS, never exactly at it (GitHub rejects "at or
+  // above", per the constant's own doc comment).
+  const reservedForState = stateBlock.length > 0 ? stateBlock.length + 2 : 0
+  const budget = GITHUB_COMMENT_MAX_CHARS - reservedForState - 1
+  let droppedByBudget = false
 
-  if (allEntries.length > maxEntries) {
-    body +=
-      `\n\n_Показаны последние ${maxEntries} прогонов; более старые записи скрыты ` +
-      '(полная история — в комментариях к review на GitHub)._'
+  while (entries.length > 1 && buildHistorySection(entries).length > budget) {
+    entries = entries.slice(0, -1)
+    droppedByBudget = true
+  }
+
+  if (buildHistorySection(entries).length > budget) {
+    const overhead = buildHistorySection([]).length
+    entries = [trimEntryToBudget(entries[0] ?? '', Math.max(0, budget - overhead), language)]
+  }
+
+  let body = buildHistorySection(entries)
+
+  if (droppedByCap || droppedByBudget) {
+    body += historyTruncationNote(language, entries.length)
+  }
+
+  if (stateBlock.length > 0) {
+    body += `\n\n${stateBlock}`
   }
 
   return body
@@ -179,6 +275,8 @@ export interface UpsertStickyCommentParams {
   state: StickyCommentState
   /** §7.3 step 6 / FR-68: state must not be written and no comment published. */
   dryRun: boolean
+  /** `review.language` (defaults to English): controls the history-truncation note's language. */
+  language?: string
 }
 
 export interface UpsertStickyCommentResult {
@@ -189,11 +287,13 @@ export interface UpsertStickyCommentResult {
 
 /**
  * Creates or updates the action's sticky summary comment (FR-63/FR-64,
- * Дополнение C). The body is `buildStickyBody(existing body, entryMarkdown)`
- * — the new entry prepended onto the capped run history — followed by the
- * machine-readable state block. `STICKY_MARKER` is always injected by
- * `buildStickyBody` itself, so it stays a single HTML comment, invisible in
- * the rendered PR (T5.19), regardless of what `entryMarkdown` contains.
+ * Дополнение C). The body is `buildStickyBody(existing body, entryMarkdown,
+ * ..., buildStateBlock(state))` — the new entry prepended onto the capped
+ * run history, trimmed to `GITHUB_COMMENT_MAX_CHARS` if needed (#8), with
+ * the machine-readable state block appended last and always preserved.
+ * `STICKY_MARKER` is always injected by `buildStickyBody` itself, so it
+ * stays a single HTML comment, invisible in the rendered PR (T5.19),
+ * regardless of what `entryMarkdown` contains.
  */
 export async function upsertStickyComment (
   client: OctokitClient,
@@ -209,8 +309,13 @@ export async function upsertStickyComment (
     return { commentId: existing?.id ?? null, created: false }
   }
 
-  const historyBody = buildStickyBody(existing?.body ?? null, params.entryMarkdown)
-  const body = `${historyBody}\n\n${buildStateBlock(params.state)}`
+  const body = buildStickyBody(
+    existing?.body ?? null,
+    params.entryMarkdown,
+    STICKY_HISTORY_MAX_ENTRIES,
+    params.language ?? 'en',
+    buildStateBlock(params.state)
+  )
 
   if (existing) {
     await client.rest.issues.updateComment({

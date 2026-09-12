@@ -386,7 +386,8 @@ export async function publishAndBuildOutputs (input: PublishPhaseInput): Promise
     prNumber: input.context.prNumber,
     entryMarkdown,
     state: { last_reviewed_sha: input.headSha, version: 1 },
-    dryRun: input.config.dry_run
+    dryRun: input.config.dry_run,
+    language: input.config.review.language
   })
 
   // Job Summary (FR-71) is best-effort: `GITHUB_STEP_SUMMARY` is only set on

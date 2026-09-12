@@ -36,6 +36,26 @@ function isNotFoundError (error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as HttpErrorLike).status === 404
 }
 
+function getErrorStatus (error: unknown): number | undefined {
+  return typeof error === 'object' && error !== null ? (error as HttpErrorLike).status : undefined
+}
+
+/**
+ * FR-19a's `listFiles` fallback is meant for the "diff genuinely too big to
+ * render" case (406/422, or an untyped client error whose message names the
+ * size/diff problem) — not for auth/permission/network failures, which
+ * `pulls.listFiles` would fail on identically anyway and which should
+ * surface as their own `GithubApiError` instead of being masked by a
+ * confusing second failure.
+ */
+function isDiffTooLargeError (error: unknown): boolean {
+  const status = getErrorStatus(error)
+  if (status === 406 || status === 422) return true
+  if (status !== undefined) return false
+  const message = errorMessage(error)
+  return /too[_ ]large/i.test(message) || /diff/i.test(message)
+}
+
 function extractDiffText (res: { data: unknown }): string {
   return typeof res.data === 'string' ? res.data : String(res.data)
 }
@@ -161,7 +181,13 @@ export async function getDiff (client: OctokitClient, params: GetDiffParams): Pr
 
   try {
     return await fetchFullDiff(client, params)
-  } catch {
+  } catch (error) {
+    if (!isDiffTooLargeError(error)) {
+      const status = getErrorStatus(error)
+      throw new GithubApiError(
+        `pulls.get failed${status !== undefined ? ` (status ${status})` : ''}: ${errorMessage(error)}`
+      )
+    }
     logger.warning(
       'pulls.get failed to return a unified diff (the PR is likely too large); ' +
         'falling back to pulls.listFiles (FR-19a).'

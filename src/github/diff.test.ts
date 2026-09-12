@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { getDiff } from './diff.ts'
 import { logger } from '../util/logger.ts'
+import { GithubApiError } from '../util/errors.ts'
 import { createOctokitMock } from '../../test/helpers/octokit-mock.ts'
 
 const BASE_PARAMS = { owner: 'tequila99', repo: 'actions-code-review', prNumber: 42 }
@@ -150,6 +151,56 @@ test('T2.42: pulls.listFiles gives 2 pages of 100 files -> both read, all files 
   assert.equal(result.source, 'list_files')
   assert.equal(result.files.length, 200)
   assert.equal(calls, 3) // 2 full pages + 1 empty page to detect the end
+})
+
+// ---------------------------------------------------------------------------
+// #15: `pulls.get` failures only fall back to `pulls.listFiles` for the
+// "diff genuinely too big to render" cases (406/422, or an untyped error
+// whose message names the size/diff problem); everything else (401/403/404,
+// network errors) must surface as a `GithubApiError` instead of being masked
+// by a second, likely-identical `listFiles` failure.
+// ---------------------------------------------------------------------------
+
+test('TAB1: pulls.get fails with status 403 -> throws GithubApiError, no listFiles fallback', async () => {
+  const client = createOctokitMock()
+  client.rest.pulls.get.mock.mockImplementation(async () => {
+    throw Object.assign(new Error('Forbidden'), { status: 403 })
+  })
+
+  await assert.rejects(
+    getDiff(client, { ...BASE_PARAMS, headSha: 'head8', incremental: false }),
+    GithubApiError
+  )
+  assert.equal(client.rest.pulls.listFiles.mock.calls.length, 0)
+})
+
+test('TAB2: pulls.get fails with status 422 -> falls back to pulls.listFiles (FR-19a)', async (t) => {
+  t.mock.method(logger, 'warning', () => {})
+  const client = createOctokitMock()
+  client.rest.pulls.get.mock.mockImplementation(async () => {
+    throw Object.assign(new Error('Unprocessable Entity'), { status: 422 })
+  })
+  client.rest.pulls.listFiles.mock.mockImplementation(async () => ({
+    data: [{ filename: 'src/y.ts', status: 'modified', patch: '@@ -1,1 +1,1 @@\n-old\n+new' }]
+  }))
+
+  const result = await getDiff(client, { ...BASE_PARAMS, headSha: 'head9', incremental: false })
+
+  assert.equal(result.source, 'list_files')
+  assert.equal(client.rest.pulls.listFiles.mock.calls.length, 1)
+})
+
+test('TAB3: pulls.get fails with no status and an unrelated message -> throws GithubApiError, no listFiles fallback', async () => {
+  const client = createOctokitMock()
+  client.rest.pulls.get.mock.mockImplementation(async () => {
+    throw new Error('ECONNRESET')
+  })
+
+  await assert.rejects(
+    getDiff(client, { ...BASE_PARAMS, headSha: 'head10', incremental: false }),
+    GithubApiError
+  )
+  assert.equal(client.rest.pulls.listFiles.mock.calls.length, 0)
 })
 
 test('T2.43: a listFiles entry with no "patch" field goes to skippedFiles, not the review', async (t) => {
