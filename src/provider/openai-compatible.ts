@@ -6,6 +6,7 @@ import { withRetry, HttpStatusError, type RetryOptions } from './retry.ts'
 import {
   completeStructured,
   sanitizeJsonSchema,
+  toStrictJsonSchema,
   type StructuredAttemptParams
 } from './structured-output.ts'
 import { estimateTokens } from './token-estimate.ts'
@@ -125,7 +126,11 @@ function buildRequestBody (
         type: 'json_schema',
         json_schema: {
           name: 'response',
-          schema: sanitizeJsonSchema(req.responseSchema),
+          // `strict: true` requires OpenAI's strict-mode shape (every property
+          // required, additionalProperties:false at every object level) —
+          // toStrictJsonSchema converts genuinely-optional fields to nullable
+          // unions to preserve their optionality under that constraint (#9).
+          schema: toStrictJsonSchema(sanitizeJsonSchema(req.responseSchema)),
           strict: true
         }
       }

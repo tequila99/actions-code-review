@@ -5,11 +5,13 @@ import {
   extractJson,
   sanitizeJsonSchema,
   swappedMaxOutputTokensParam,
+  toStrictJsonSchema,
   type StructuredAttemptParams
 } from './structured-output.ts'
 import { HttpStatusError } from './retry.ts'
 import { ProviderError } from '../util/errors.ts'
-import type { CompletionRequest, CompletionResponse } from './types.ts'
+import type { CompletionRequest, CompletionResponse, JsonSchema } from './types.ts'
+import { FINDINGS_RESPONSE_SCHEMA } from '../engine/prompt/system.ts'
 
 function baseRequest (overrides: Partial<CompletionRequest> = {}): CompletionRequest {
   return {
@@ -209,3 +211,115 @@ test('T3.42: the JSON schema sent to the model never contains oneOf/allOf/$ref/p
 })
 
 type StructuredOutputStageLog = 'json_schema' | 'json_object' | 'none'
+
+// ---------------------------------------------------------------------------
+// TAD (issue #9): OpenAI strict-mode schema conversion.
+// ---------------------------------------------------------------------------
+
+test('TAD1: toStrictJsonSchema sets additionalProperties:false and required=all property keys', () => {
+  const schema: JsonSchema = {
+    type: 'object',
+    properties: {
+      summary: { type: 'string' },
+      findings: { type: 'array', items: { type: 'string' } }
+    },
+    required: ['findings']
+  }
+  const strict = toStrictJsonSchema(schema)
+  assert.equal(strict.additionalProperties, false)
+  assert.deepEqual([...(strict.required as string[])].sort(), ['findings', 'summary'])
+})
+
+test('TAD2: a property absent from the original required list becomes a [T, "null"] union; an already-required one is untouched', () => {
+  const schema: JsonSchema = {
+    type: 'object',
+    properties: {
+      summary: { type: 'string' },
+      findings: { type: 'array', items: { type: 'string' } }
+    },
+    required: ['findings']
+  }
+  const strict = toStrictJsonSchema(schema)
+  const props = strict.properties as Record<string, JsonSchema>
+  assert.deepEqual(props.summary?.type, ['string', 'null'])
+  assert.equal(props.findings?.type, 'array')
+})
+
+test('TAD3: nested object schemas (inside array items) are strictified recursively', () => {
+  const schema: JsonSchema = {
+    type: 'object',
+    properties: {
+      findings: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            path: { type: 'string' },
+            end_line: { type: 'integer' }
+          },
+          required: ['path']
+        }
+      }
+    },
+    required: ['findings']
+  }
+  const strict = toStrictJsonSchema(schema)
+  const findingsProp = (strict.properties as Record<string, JsonSchema>).findings as JsonSchema
+  const itemSchema = findingsProp.items as JsonSchema
+  assert.equal(itemSchema.additionalProperties, false)
+  assert.deepEqual([...(itemSchema.required as string[])].sort(), ['end_line', 'path'])
+  const itemProps = itemSchema.properties as Record<string, JsonSchema>
+  assert.deepEqual(itemProps.end_line?.type, ['integer', 'null'])
+  assert.equal(itemProps.path?.type, 'string')
+})
+
+test('TAD4: a property whose type is already an array gets "null" appended without duplication', () => {
+  const schema: JsonSchema = {
+    type: 'object',
+    properties: {
+      maybeNull: { type: ['string', 'null'] },
+      optionalNum: { type: 'integer' }
+    },
+    required: []
+  }
+  const strict = toStrictJsonSchema(schema)
+  const props = strict.properties as Record<string, JsonSchema>
+  assert.deepEqual(props.maybeNull?.type, ['string', 'null'])
+  assert.deepEqual(props.optionalNum?.type, ['integer', 'null'])
+})
+
+test('TAD5: sanitizeJsonSchema allows additionalProperties only when it is exactly false', () => {
+  const withFalse = sanitizeJsonSchema({ type: 'object', properties: {}, additionalProperties: false })
+  assert.equal(withFalse.additionalProperties, false)
+  const withTrue = sanitizeJsonSchema({ type: 'object', properties: {}, additionalProperties: true })
+  assert.equal('additionalProperties' in withTrue, false)
+})
+
+test('TAD6: sanitizeJsonSchema passes an array-form "type" (e.g. ["string","null"]) through unchanged', () => {
+  const clean = sanitizeJsonSchema({ type: ['string', 'null'], description: 'x' })
+  assert.deepEqual(clean.type, ['string', 'null'])
+})
+
+/** Recursively asserts every `type: 'object'` node satisfies OpenAI strict mode
+ * (§9's #9): `additionalProperties: false` and `required` listing every key
+ * in `properties`, at every nesting level (top-level object, array items, ...). */
+function assertStrictModeCompliant (schema: unknown): void {
+  if (schema === null || typeof schema !== 'object') return
+  const obj = schema as Record<string, unknown>
+  if (obj.type === 'object') {
+    assert.equal(obj.additionalProperties, false, 'every object node must set additionalProperties:false')
+    const props = (obj.properties ?? {}) as Record<string, unknown>
+    assert.deepEqual(
+      [...((obj.required as string[] | undefined) ?? [])].sort(),
+      Object.keys(props).sort(),
+      'required must list every property key'
+    )
+    for (const propSchema of Object.values(props)) assertStrictModeCompliant(propSchema)
+  }
+  if (obj.items) assertStrictModeCompliant(obj.items)
+}
+
+test('TAD7: FINDINGS_RESPONSE_SCHEMA, after sanitize+strictify, is valid per OpenAI strict-mode rules at every nesting level', () => {
+  const strict = toStrictJsonSchema(sanitizeJsonSchema(FINDINGS_RESPONSE_SCHEMA))
+  assertStrictModeCompliant(strict)
+})
