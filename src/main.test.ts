@@ -8,6 +8,8 @@ import { buildPositionMap } from './github/position-map.ts'
 import { formatReviewEntry, ENTRY_START, ENTRY_END } from './report/format.ts'
 import { buildStickyBody } from './github/sticky-comment.ts'
 import { logger } from './util/logger.ts'
+import { CapabilityError, ProviderError } from './util/errors.ts'
+import { registerSecret } from './util/secrets.ts'
 
 // NB: `@actions/core` is a pure ESM package — its named exports are live
 // bindings and cannot be monkey-patched with `t.mock.method(core, 'setFailed', ...)`
@@ -877,4 +879,71 @@ test("TC.9: existing sticky comment with 1 history entry -> after a new run, iss
     startedAtMs >= before && startedAtMs <= after,
     'startedAt must be captured at the top of this run()'
   )
+})
+
+// ---------------------------------------------------------------------------
+// Package A (TX1): run()'s catch block maps a CapabilityError to the
+// dedicated `skipped_reason: 'capability_check_failed'` output (§8.2) and
+// still sets every other output, on top of the AppError message handling
+// TX2 (above) already covers.
+// ---------------------------------------------------------------------------
+
+test('TX1: CapabilityError thrown mid-run -> skipped_reason "capability_check_failed", all outputs still set', async (t) => {
+  const originalExitCode = process.exitCode
+  t.after(() => {
+    process.exitCode = originalExitCode
+  })
+  const writes = captureStdoutWrites(t)
+
+  t.mock.method(internals, 'loadConfig', async () => {
+    throw new CapabilityError(
+      'The configured model does not support tool calling.',
+      'Switch mode to "diff", or pick a tool-calling-capable model.'
+    )
+  })
+
+  await withEnvAsync({ GITHUB_EVENT_NAME: 'pull_request' }, () => run())
+
+  assert.equal(process.exitCode, 1, 'core.setFailed must set process.exitCode = 1')
+  const outputs = parseSetOutputCommands(writes)
+  assert.equal(outputs.skipped_reason, 'capability_check_failed')
+  for (const key of PRD_OUTPUT_KEYS) {
+    assert.ok(key in outputs, `missing output "${key}"`)
+  }
+
+  const allWrites = writes.join('')
+  assert.ok(
+    allWrites.includes('Switch mode to "diff"'),
+    'setFailed message must include the AppError hint'
+  )
+})
+
+test('TX2: ProviderError containing a registered secret -> setFailed message is redacted', async (t) => {
+  const originalExitCode = process.exitCode
+  t.after(() => {
+    process.exitCode = originalExitCode
+  })
+  const writes = captureStdoutWrites(t)
+
+  registerSecret('mainCatchSecretTokenXYZ')
+  t.mock.method(internals, 'loadConfig', async () => {
+    throw new ProviderError('Upstream rejected request, key=mainCatchSecretTokenXYZ')
+  })
+
+  await withEnvAsync({ GITHUB_EVENT_NAME: 'pull_request' }, () => run())
+
+  assert.equal(process.exitCode, 1, 'core.setFailed must set process.exitCode = 1')
+
+  // NB: registerSecret() itself writes an `::add-mask::<secret>` command
+  // (that command's payload IS the raw value — the runner needs it verbatim
+  // to know what to scrub from later logs). So the secret legitimately
+  // appears once in captured stdout; what must never contain it is the
+  // `::error::...` annotation core.setFailed() produces.
+  const errorLine = writes.find((w) => w.includes('::error::'))
+  assert.ok(errorLine, 'core.setFailed must emit an ::error:: annotation')
+  assert.ok(
+    !errorLine!.includes('mainCatchSecretTokenXYZ'),
+    'the secret must never reach the core.setFailed error annotation'
+  )
+  assert.ok(errorLine!.includes('***'), 'redaction marker must be present')
 })
