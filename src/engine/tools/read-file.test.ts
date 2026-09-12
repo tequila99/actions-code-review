@@ -32,12 +32,39 @@ test('T7.16: read_file of a nonexistent file is a result-error, not an exception
 
 test('T7.17: read_file of a file larger than tool_output_max_bytes is truncated with a marker', async () => {
   await withTmpWorkspace(async (ws) => {
+    // Below the TZ6 stat-size cutoff (toolOutputMaxBytes * 4 = 1200) so this exercises the
+    // ordinary post-read truncation path, not the new "too large, ask for a range" refusal.
     await ws.write('big.ts', 'x'.repeat(1000))
-    const ctx = makeToolContext(ws.root, { toolOutputMaxBytes: 50 })
+    const ctx = makeToolContext(ws.root, { toolOutputMaxBytes: 300 })
     const result = await readFile({ path: 'big.ts' }, ctx)
     assert.equal(result.isError, false)
     assert.ok(Buffer.byteLength(result.content, 'utf8') < 1000)
     assert.match(result.content, /truncated/)
+  })
+})
+
+test('TZ6: read_file of a file larger than tool_output_max_bytes * 4 with no start_line/end_line ' +
+  'is refused, pointing the model at a specific range instead of reading the whole thing', async () => {
+  await withTmpWorkspace(async (ws) => {
+    await ws.write('huge.ts', 'x'.repeat(1000))
+    const ctx = makeToolContext(ws.root, { toolOutputMaxBytes: 200 }) // cutoff: 200 * 4 = 800
+    const result = await readFile({ path: 'huge.ts' }, ctx)
+    assert.equal(result.isError, true)
+    assert.match(result.content, /start_line/)
+    assert.match(result.content, /end_line/)
+  })
+})
+
+test('TZ7: the same oversized file is still read in full when start_line/end_line are given — ' +
+  'needed for correct 1-based line numbering even when only a slice is returned', async () => {
+  await withTmpWorkspace(async (ws) => {
+    const lines = Array.from({ length: 500 }, (_, i) => `line ${i + 1} ${'x'.repeat(20)}`)
+    await ws.write('huge.ts', lines.join('\n'))
+    const ctx = makeToolContext(ws.root, { toolOutputMaxBytes: 200 }) // cutoff: 200 * 4 = 800
+    const result = await readFile({ path: 'huge.ts', start_line: 250, end_line: 251 }, ctx)
+    assert.equal(result.isError, false)
+    assert.match(result.content, /^250: line 250/)
+    assert.match(result.content, /251: line 251/)
   })
 })
 
