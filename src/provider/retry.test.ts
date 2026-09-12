@@ -305,6 +305,91 @@ test('TAC5: a Retry-After far above the cap is clamped to maxDelayMs * 6 (#10b)'
   assert.equal(delay, 60_000)
 })
 
+test('TAC6: a bare TypeError from a logic bug (not fetch) is NOT retried (#21)', async () => {
+  const { sleep } = fakeSleep()
+  let calls = 0
+  await assert.rejects(
+    () =>
+      withRetry(
+        async () => {
+          calls++
+          throw new TypeError('Cannot read properties of undefined (reading \'foo\')')
+        },
+        { sleep }
+      ),
+    (err: unknown) => err instanceof TypeError
+  )
+  assert.equal(calls, 1)
+})
+
+test('TAC7: a TypeError whose message reads like a transport failure IS retried (#21)', async () => {
+  const { sleep } = fakeSleep()
+  let calls = 0
+  const result = await withRetry(
+    async () => {
+      calls++
+      if (calls === 1) throw new TypeError('network error')
+      return 'ok'
+    },
+    { sleep }
+  )
+  assert.equal(result, 'ok')
+  assert.equal(calls, 2)
+})
+
+test('TAC8: a TypeError whose cause carries a network error code IS retried, even with an unrelated message (#21)', async () => {
+  const { sleep } = fakeSleep()
+  let calls = 0
+  const result = await withRetry(
+    async () => {
+      calls++
+      if (calls === 1) {
+        throw new TypeError('fetch failed', { cause: Object.assign(new Error('other side closed'), { code: 'ECONNRESET' }) })
+      }
+      return 'ok'
+    },
+    { sleep }
+  )
+  assert.equal(result, 'ok')
+  assert.equal(calls, 2)
+})
+
+test('TAC9: a TypeError with a non-network cause code is NOT retried (#21)', async () => {
+  const { sleep } = fakeSleep()
+  let calls = 0
+  await assert.rejects(
+    () =>
+      withRetry(
+        async () => {
+          calls++
+          throw new TypeError('Cannot read properties of undefined', {
+            cause: Object.assign(new Error('unrelated'), { code: 'ERR_SOMETHING_ELSE' })
+          })
+        },
+        { sleep }
+      ),
+    (err: unknown) => err instanceof TypeError
+  )
+  assert.equal(calls, 1)
+})
+
+test('TAC10: a plain Error (neither TypeError nor coded) is NOT retried (#21)', async () => {
+  const { sleep } = fakeSleep()
+  let calls = 0
+  await assert.rejects(
+    () =>
+      withRetry(
+        async () => {
+          calls++
+          throw new Error('something unrelated broke')
+        },
+        { sleep }
+      ),
+    (err: unknown) => err instanceof Error && err.message === 'something unrelated broke'
+  )
+  assert.equal(calls, 1)
+})
+
 test('TH.3: repeated TimeoutErrors exhaust the retry budget like any other retryable error', async () => {
   const { sleep } = fakeSleep()
   let calls = 0

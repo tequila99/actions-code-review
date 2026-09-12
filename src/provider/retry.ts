@@ -120,6 +120,12 @@ function hasStringCode (err: unknown): err is { code: string } {
   )
 }
 
+/** Matches undici/fetch's own wording for a transport failure, e.g. `TypeError:
+ * fetch failed`. Deliberately narrow — a bare `TypeError` is also what a
+ * logic bug (e.g. destructuring `undefined`) throws, and that must NOT be
+ * retried (#21). */
+const NETWORK_ERROR_MESSAGE = /fetch failed|network|ECONN|socket/i
+
 /**
  * A "network error" is a low-level transport failure (connection
  * reset/refused, DNS failure, etc.) — always retryable (FR-22). Anything
@@ -127,10 +133,22 @@ function hasStringCode (err: unknown): err is { code: string } {
  * "no choices in response" logical error) is deliberately NOT retried:
  * retrying a malformed-response error rarely helps and risks masking a real
  * bug as slow flakiness.
+ *
+ * `fetch` wraps every transport failure in a `TypeError`, but so does any
+ * unrelated logic bug (e.g. `Cannot read properties of undefined`) — a bare
+ * `err instanceof TypeError` check can't tell those apart and would retry a
+ * real bug into a slow, confusing failure (#21). Undici puts the actual
+ * cause (with its `code`) on `TypeError#cause`, so a `TypeError` only counts
+ * as a network error when either its own message reads like a transport
+ * failure, or its `cause` carries a known network error code.
  */
 function isNetworkError (err: unknown): boolean {
-  if (err instanceof TypeError) return true
   if (hasStringCode(err)) return NETWORK_ERROR_CODES.has(err.code)
+  if (err instanceof TypeError) {
+    if (NETWORK_ERROR_MESSAGE.test(err.message)) return true
+    const cause = (err as { cause?: unknown }).cause
+    return hasStringCode(cause) && NETWORK_ERROR_CODES.has(cause.code)
+  }
   return false
 }
 
