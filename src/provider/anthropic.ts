@@ -52,10 +52,19 @@ const MESSAGES_PATH = '/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 const BODY_SNIPPET_MAX_LENGTH = 500
 
+/** Anthropic's sole cache TTL shape today — 5-minute ephemeral breakpoints. */
+type CacheControl = { type: 'ephemeral' }
+
 type AnthropicContentBlock =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; cache_control?: CacheControl }
   | { type: 'tool_use'; id: string; name: string; input: unknown }
-  | { type: 'tool_result'; tool_use_id: string; content: string }
+  | { type: 'tool_result'; tool_use_id: string; content: string; cache_control?: CacheControl }
+
+interface AnthropicSystemBlock {
+  type: 'text'
+  text: string
+  cache_control: CacheControl
+}
 
 interface AnthropicWireMessage {
   role: 'user' | 'assistant'
@@ -138,15 +147,48 @@ function toWireTool (tool: ToolSpec): Record<string, unknown> {
   }
 }
 
+/**
+ * Prompt caching (#11, PRD §11.2): three fixed breakpoints keep the frozen
+ * prefix (system + tool definitions) and, from the second turn on, the
+ * growing tool-result history off the metered-price path on every repeat
+ * request within an `AgentEngine` loop:
+ *   - the system block (always — it's static per review run);
+ *   - the last `tools[]` entry (Anthropic caches everything up to and
+ *     including a breakpoint, so one at the end covers the whole list);
+ *   - the last `tool_result` block of the last message, but only once
+ *     `req.messages.length > 2` — a fresh single-turn request has no tool
+ *     history yet, so caching it there would just pay the cache-write
+ *     premium for content that's never read back.
+ */
+function applyCacheControl (wireMessages: AnthropicWireMessage[], messages: readonly ChatMessage[]): void {
+  if (messages.length <= 2) return
+  const lastMessage = wireMessages[wireMessages.length - 1]
+  if (!lastMessage || lastMessage.role !== 'user') return
+  const lastBlock = lastMessage.content[lastMessage.content.length - 1]
+  if (lastBlock?.type === 'tool_result') {
+    lastBlock.cache_control = { type: 'ephemeral' }
+  }
+}
+
 function buildRequestBody (req: CompletionRequest, model: string): Record<string, unknown> {
+  const wireMessages = toWireMessages(req.messages)
+  applyCacheControl(wireMessages, req.messages)
+
+  const system: AnthropicSystemBlock[] = [
+    { type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }
+  ]
+
   const body: Record<string, unknown> = {
     model,
-    system: req.system,
-    messages: toWireMessages(req.messages),
+    system,
+    messages: wireMessages,
     max_tokens: req.maxOutputTokens
   }
   if (req.tools && req.tools.length > 0) {
-    body.tools = req.tools.map(toWireTool)
+    const wireTools = req.tools.map(toWireTool)
+    const lastTool = wireTools[wireTools.length - 1]
+    if (lastTool) lastTool.cache_control = { type: 'ephemeral' }
+    body.tools = wireTools
   }
   if (req.responseSchema) {
     body.output_config = {

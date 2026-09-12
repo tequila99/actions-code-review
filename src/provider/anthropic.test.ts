@@ -76,7 +76,10 @@ test('T9.2: system is a separate top-level field, not inside messages', async ()
     () => jsonResponse(SUCCESS_FIXTURE),
     baseRequest({ system: 'System prompt text.' })
   )
-  assert.equal(body.system, 'System prompt text.')
+  // T9.2 predates prompt caching (TAE4) — system is now an array of blocks
+  // rather than a bare string, so this assertion targets the block's text.
+  const systemBlocks = body.system as Array<Record<string, unknown>>
+  assert.equal(systemBlocks[0]?.text, 'System prompt text.')
   const messages = body.messages as Array<Record<string, unknown>>
   assert.ok(messages.every((m) => m.role !== 'system'))
 })
@@ -94,12 +97,14 @@ test('T9.3: ToolSpec is converted to {name, description, input_schema}', async (
       ]
     })
   )
+  // The last (here, only) tool carries the TAE5 cache_control breakpoint.
   const tools = body.tools as Array<Record<string, unknown>>
   assert.deepEqual(tools, [
     {
       name: 'get_diff',
       description: 'Get the PR diff.',
-      input_schema: { type: 'object', properties: {}, required: [] }
+      input_schema: { type: 'object', properties: {}, required: [] },
+      cache_control: { type: 'ephemeral' }
     }
   ])
 })
@@ -164,8 +169,10 @@ test('T9.5: a tool-result ChatMessage becomes a role:"user" message with a tool_
   const wireMessages = body.messages as Array<Record<string, unknown>>
   const toolResultMsg = wireMessages[2]
   assert.equal(toolResultMsg?.role, 'user')
+  // TAE6: messages.length is 3 here (> 2), so this last tool_result also
+  // carries the cache_control breakpoint.
   assert.deepEqual(toolResultMsg?.content, [
-    { type: 'tool_result', tool_use_id: 'toolu_1', content: 'file contents here' }
+    { type: 'tool_result', tool_use_id: 'toolu_1', content: 'file contents here', cache_control: { type: 'ephemeral' } }
   ])
 })
 
@@ -188,9 +195,11 @@ test('T9.5b: consecutive tool-result ChatMessages (multiple tool calls in one tu
   assert.equal(wireMessages.length, 3)
   const merged = wireMessages[2]
   assert.equal(merged?.role, 'user')
+  // TAE6/TAE8: messages.length is 4 here (> 2), so only the last merged
+  // tool_result block carries the cache_control breakpoint.
   assert.deepEqual(merged?.content, [
     { type: 'tool_result', tool_use_id: 'toolu_1', content: 'file A' },
-    { type: 'tool_result', tool_use_id: 'toolu_2', content: 'grep results' }
+    { type: 'tool_result', tool_use_id: 'toolu_2', content: 'grep results', cache_control: { type: 'ephemeral' } }
   ])
 })
 
@@ -373,4 +382,104 @@ test('TAE3: a custom Authorization header is sent alongside a suppressed empty x
   const headers = new Headers(init?.headers)
   assert.equal(headers.has('x-api-key'), false)
   assert.equal(headers.get('authorization'), 'Bearer gateway-token')
+})
+
+// #11: prompt caching — cache_control breakpoints on the system block, the
+// last tool definition, and (once the conversation has a real turn behind
+// it) the last tool_result block, so a multi-turn AgentEngine loop re-reads
+// the frozen prefix from cache instead of paying full price every request.
+
+test('TAE4: system is sent as [{type: "text", text, cache_control: {type: "ephemeral"}}]', async () => {
+  const { body } = await captureRequest(
+    () => jsonResponse(SUCCESS_FIXTURE),
+    baseRequest({ system: 'System prompt text.' })
+  )
+  assert.deepEqual(body.system, [
+    { type: 'text', text: 'System prompt text.', cache_control: { type: 'ephemeral' } }
+  ])
+})
+
+test('TAE5: the last element of tools[] carries cache_control, earlier ones do not', async () => {
+  const { body } = await captureRequest(
+    () => jsonResponse(SUCCESS_FIXTURE),
+    baseRequest({
+      tools: [
+        { name: 'get_diff', description: 'Get the PR diff.', parameters: { type: 'object', properties: {}, required: [] } },
+        { name: 'read_file', description: 'Read a file.', parameters: { type: 'object', properties: {}, required: [] } }
+      ]
+    })
+  )
+  const tools = body.tools as Array<Record<string, unknown>>
+  assert.equal(tools.length, 2)
+  assert.equal(tools[0]?.cache_control, undefined)
+  assert.deepEqual(tools[1]?.cache_control, { type: 'ephemeral' })
+})
+
+test('TAE6: the last tool_result block gets cache_control once messages.length > 2', async () => {
+  const messages: ChatMessage[] = [
+    { role: 'user', content: 'Review this diff.' },
+    { role: 'assistant', content: '', toolCalls: [{ id: 'toolu_1', name: 'read_file', arguments: {} }] },
+    { role: 'tool', content: 'file contents', toolCallId: 'toolu_1', name: 'read_file' }
+  ]
+  const { body } = await captureRequest(() => jsonResponse(SUCCESS_FIXTURE), baseRequest({ messages }))
+  const wireMessages = body.messages as Array<Record<string, unknown>>
+  const lastMessage = wireMessages[wireMessages.length - 1]
+  const lastBlock = (lastMessage?.content as Array<Record<string, unknown>>).at(-1)
+  assert.deepEqual(lastBlock?.cache_control, { type: 'ephemeral' })
+})
+
+test('TAE7: no tool_result cache_control on the first exchange (messages.length <= 2)', async () => {
+  // Not a realistic Anthropic conversation shape (a lone tool-result message
+  // with no preceding user/assistant turn) — it isolates the length guard
+  // itself rather than a real AgentEngine transcript.
+  const messages: ChatMessage[] = [
+    { role: 'tool', content: 'file contents', toolCallId: 'toolu_1', name: 'read_file' }
+  ]
+  const { body } = await captureRequest(() => jsonResponse(SUCCESS_FIXTURE), baseRequest({ messages }))
+  const wireMessages = body.messages as Array<Record<string, unknown>>
+  const lastMessage = wireMessages[wireMessages.length - 1]
+  const lastBlock = (lastMessage?.content as Array<Record<string, unknown>>).at(-1)
+  assert.equal(lastBlock?.cache_control, undefined)
+})
+
+test('TAE8: only the last of several merged tool_result blocks gets cache_control', async () => {
+  const messages: ChatMessage[] = [
+    { role: 'user', content: 'Review this diff.' },
+    {
+      role: 'assistant',
+      content: '',
+      toolCalls: [
+        { id: 'toolu_1', name: 'read_file', arguments: {} },
+        { id: 'toolu_2', name: 'grep', arguments: {} }
+      ]
+    },
+    { role: 'tool', content: 'file A', toolCallId: 'toolu_1', name: 'read_file' },
+    { role: 'tool', content: 'grep results', toolCallId: 'toolu_2', name: 'grep' }
+  ]
+  const { body } = await captureRequest(() => jsonResponse(SUCCESS_FIXTURE), baseRequest({ messages }))
+  const wireMessages = body.messages as Array<Record<string, unknown>>
+  const merged = wireMessages[wireMessages.length - 1]
+  const blocks = merged?.content as Array<Record<string, unknown>>
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[0]?.cache_control, undefined)
+  assert.deepEqual(blocks[1]?.cache_control, { type: 'ephemeral' })
+})
+
+test('TAE9: exactly 3 cache_control breakpoints in the whole request body — system, tools, tool_result', async () => {
+  const messages: ChatMessage[] = [
+    { role: 'user', content: 'Review this diff.' },
+    { role: 'assistant', content: '', toolCalls: [{ id: 'toolu_1', name: 'read_file', arguments: {} }] },
+    { role: 'tool', content: 'file contents', toolCallId: 'toolu_1', name: 'read_file' }
+  ]
+  const { body } = await captureRequest(
+    () => jsonResponse(SUCCESS_FIXTURE),
+    baseRequest({
+      messages,
+      tools: [
+        { name: 'read_file', description: 'Read a file.', parameters: { type: 'object', properties: {}, required: [] } }
+      ]
+    })
+  )
+  const occurrences = JSON.stringify(body).match(/cache_control/g) ?? []
+  assert.equal(occurrences.length, 3)
 })
