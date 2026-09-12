@@ -23,7 +23,7 @@ inputs:
     description: 'Model name, in the terms the configured provider expects (e.g. gpt-4.1-mini, qwen/qwen3-coder).'
     required: true
   api_flavor:
-    description: 'Wire dialect to speak to the provider: openai | anthropic | gemini.'
+    description: 'Wire dialect to speak to the provider: openai | anthropic (gemini planned, rejected at config time).'
     required: false
     default: 'openai'
   api_headers:

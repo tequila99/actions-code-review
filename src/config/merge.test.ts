@@ -19,7 +19,6 @@ function baseInputs (overrides: Partial<RawInputs> = {}): RawInputs {
     include: [],
     exclude: [],
     skip_labels: [],
-    total_timeout_ms: 900000,
     ...overrides
   }
 }
@@ -158,6 +157,30 @@ test('T1.61 (merge): api.base_url set in the FILE (http), allow_insecure_base_ur
 })
 
 // ---------------------------------------------------------------------------
+// TY: api.total_timeout_ms follows the standard input > file > default
+// priority (FR-6) — it must not always come from the input, so a file-only
+// value can actually take effect when the input is unset.
+// ---------------------------------------------------------------------------
+
+test('TY.1: total_timeout_ms set only in the file is honored when the input is unset', () => {
+  const resolved = mergeConfig(baseInputs(), baseFile({ api: { total_timeout_ms: 60000 } }))
+  assert.equal(resolved.api.total_timeout_ms, 60000)
+})
+
+test('TY.2: total_timeout_ms input wins over the file (FR-6)', () => {
+  const resolved = mergeConfig(
+    baseInputs({ total_timeout_ms: 30000 }),
+    baseFile({ api: { total_timeout_ms: 60000 } })
+  )
+  assert.equal(resolved.api.total_timeout_ms, 30000)
+})
+
+test('TY.3: total_timeout_ms set nowhere -> the default', () => {
+  const resolved = mergeConfig(baseInputs(), baseFile())
+  assert.equal(resolved.api.total_timeout_ms, DEFAULTS.total_timeout_ms)
+})
+
+// ---------------------------------------------------------------------------
 // TT.25-29: agent.web_search (THR-11) — off by default, its own call cap,
 // and a merge-time warning (not an error) when enabled against a non-
 // OpenRouter api_base_url.
@@ -228,6 +251,37 @@ test('TV.2: agent_filter_model input wins over the file (FR-6)', () => {
 test('TV.3: agent_filter_model set only in the file is honored when the input is unset', () => {
   const resolved = mergeConfig(baseInputs(), baseFile({ agent: { filter_model: 'from-file-model' } }))
   assert.equal(resolved.agent.filter_model, 'from-file-model')
+})
+
+// ---------------------------------------------------------------------------
+// TZ: api_flavor "gemini" is rejected at config-merge time, not left to
+// surface only once the provider adapter is constructed (stage 9b, FR-28).
+// `provider/factory.ts`'s own `case 'gemini'` stays as defense in depth for
+// a ResolvedConfig built any other way, but a user setting api_flavor:
+// gemini should see the error as early as possible.
+// ---------------------------------------------------------------------------
+
+test('TZ.1: api_flavor "gemini" (input) is rejected by mergeConfig itself', () => {
+  assert.throws(
+    () => mergeConfig(baseInputs({ api_flavor: 'gemini' }), baseFile()),
+    (thrown: unknown) => {
+      const err = asConfigError(thrown)
+      assert.match(err.message, /gemini/i)
+      assert.match(err.message, /not supported yet/i)
+      return true
+    }
+  )
+})
+
+test('TZ.2: api_flavor "gemini" set only in the file is also rejected by mergeConfig', () => {
+  assert.throws(
+    () => mergeConfig(baseInputs(), baseFile({ api: { flavor: 'gemini' } })),
+    (thrown: unknown) => {
+      const err = asConfigError(thrown)
+      assert.match(err.message, /gemini/i)
+      return true
+    }
+  )
 })
 
 // ---------------------------------------------------------------------------

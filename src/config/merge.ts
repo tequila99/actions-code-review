@@ -143,7 +143,11 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
         file.api?.request_timeout_ms,
         DEFAULTS.request_timeout_ms
       ),
-      total_timeout_ms: inputs.total_timeout_ms,
+      total_timeout_ms: pickScalar(
+        inputs.total_timeout_ms,
+        file.api?.total_timeout_ms,
+        DEFAULTS.total_timeout_ms
+      ),
       headers,
       allow_insecure_base_url: allowInsecureBaseUrl,
       ...(inputs.temperature !== undefined ? { temperature: inputs.temperature } : {})
@@ -259,6 +263,19 @@ export function mergeConfig (inputs: RawInputs, file: FileConfig): ResolvedConfi
   }
 
   assertSecureBaseUrl(resolvedRaw.api.base_url, resolvedRaw.api.allow_insecure_base_url)
+
+  // Reject as early as possible (config-merge time, not provider-construction
+  // time): `provider/factory.ts` still has its own `case 'gemini'` guard as
+  // defense in depth for a ResolvedConfig assembled any other way, but a user
+  // who sets api_flavor: gemini should see this before the run gets any
+  // further (stage 9b, FR-28).
+  if (resolvedRaw.api.flavor === 'gemini') {
+    throw new ConfigError(
+      'api_flavor "gemini" is not supported yet (planned for stage 9b).',
+      'Use api_flavor: "openai" (works with vLLM/Ollama/OpenRouter/any OpenAI-compatible gateway) or "anthropic" for now.'
+    )
+  }
+
   warnIfWebSearchRequiresOpenRouter(resolvedRaw.agent.web_search.enabled, resolvedRaw.api.base_url)
 
   return parseResolvedConfig(resolvedRaw)

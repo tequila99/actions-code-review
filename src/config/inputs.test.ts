@@ -102,13 +102,38 @@ test('T1.18: core.setSecret (via the secrets seam) is called for both github_tok
   assert.ok(values.includes('api-key-value-5678'))
 })
 
-test('T1.19: api_headers values are masked too', (t) => {
+test('T1.19: api_headers values of auth-shaped header names are masked too', (t) => {
   const setSecret = t.mock.method(secretsInternals, 'setSecret', () => {})
-  withModelAnd({ api_headers: 'X-Internal-Auth: super-secret-header-value' }, () => {
+  withModelAnd({ api_headers: 'X-Internal-Token: super-secret-header-value' }, () => {
     readInputs()
   })
   const values = setSecret.mock.calls.map((c) => c.arguments[0])
   assert.ok(values.includes('super-secret-header-value'))
+})
+
+// ---------------------------------------------------------------------------
+// TX: parseApiHeaders only registers a header's value as a secret when the
+// header NAME itself looks like a credential carrier — masking every header
+// value regardless of its name (the old T1.19 behavior) corrupted unrelated
+// output whenever a non-secret value happened to match, e.g. a tenant id.
+// ---------------------------------------------------------------------------
+
+test('TX.1: Authorization header value is masked', (t) => {
+  const setSecret = t.mock.method(secretsInternals, 'setSecret', () => {})
+  withModelAnd({ api_headers: 'Authorization: Bearer abc123' }, () => {
+    readInputs()
+  })
+  const values = setSecret.mock.calls.map((c) => c.arguments[0])
+  assert.ok(values.includes('Bearer abc123'))
+})
+
+test('TX.2: a non-auth-shaped header name (X-Tenant-Id) does not register its value as a secret', (t) => {
+  const setSecret = t.mock.method(secretsInternals, 'setSecret', () => {})
+  withModelAnd({ api_headers: 'X-Tenant-Id: platform' }, () => {
+    readInputs()
+  })
+  const values = setSecret.mock.calls.map((c) => c.arguments[0])
+  assert.ok(!values.includes('platform'))
 })
 
 test('T1.20: multiline include/exclude/skip_labels become arrays of trimmed, non-empty strings', () => {
@@ -152,9 +177,9 @@ test('T1.25: a trailing slash on api_base_url is normalized away', () => {
   })
 })
 
-test('T1.55: total_timeout_ms defaults to 900000 when unset, or uses the provided value', () => {
+test('T1.55: total_timeout_ms is absent when unset (so a file value can win), or uses the provided value', () => {
   withModelAnd({}, () => {
-    assert.equal(readInputs().total_timeout_ms, 900000)
+    assert.equal('total_timeout_ms' in readInputs(), false)
   })
   withModelAnd({ total_timeout_ms: '60000' }, () => {
     assert.equal(readInputs().total_timeout_ms, 60000)
