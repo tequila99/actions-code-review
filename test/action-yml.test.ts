@@ -193,6 +193,43 @@ test('T6 (model is required, no default)', async () => {
   assert.equal(inputs.model!.default, undefined)
 })
 
+/**
+ * T6.10: README.md states the input/output counts as prose ("every input
+ * (N total)" / "the N outputs this action produces") rather than deriving
+ * them from action.yml, so the two can silently drift apart whenever an
+ * input or output is added/removed. Cross-check the numbers here instead of
+ * only trusting the prose.
+ */
+test('T6.10: README.md input/output counts match the actual counts in action.yml', async () => {
+  const doc = await loadActionYml()
+  const actualInputCount = Object.keys(doc.inputs as Record<string, unknown>).length
+  const actualOutputCount = Object.keys(doc.outputs as Record<string, unknown>).length
+
+  const readme = await readFile(path.join(ROOT, 'README.md'), 'utf8')
+  const inputsMatch = readme.match(/every input \((\d+) total\)/)
+  const outputsMatch = readme.match(/the (\d+) outputs this action produces/)
+
+  assert.ok(inputsMatch, 'README.md should state the input count as "every input (N total)"')
+  assert.ok(
+    outputsMatch,
+    'README.md should state the output count as "the N outputs this action produces"'
+  )
+
+  const documentedInputCount = Number(inputsMatch![1])
+  const documentedOutputCount = Number(outputsMatch![1])
+
+  assert.equal(
+    documentedInputCount,
+    actualInputCount,
+    `README.md says ${documentedInputCount} inputs, action.yml has ${actualInputCount}`
+  )
+  assert.equal(
+    documentedOutputCount,
+    actualOutputCount,
+    `README.md says ${documentedOutputCount} outputs, action.yml has ${actualOutputCount}`
+  )
+})
+
 test('T6 (author is tequila99, description non-empty)', async () => {
   const doc = await loadActionYml()
   assert.equal(doc.author, 'tequila99')

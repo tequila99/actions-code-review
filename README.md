@@ -268,10 +268,21 @@ via `issues.createComment`, but pull requests are issues under the hood, so
 `pull-requests: write` alone is sufficient. `id-token: write` is not required
 either — there is no OIDC usage in v1.
 
+**Pull requests from forks:** on the default `pull_request` trigger, GitHub
+issues a read-only `GITHUB_TOKEN` for PRs opened from a fork, regardless of
+the `permissions:` block above. This action's own `createReview` call gets
+an HTTP 403 in that case, which fails the run with a clear error message
+(rather than silently doing nothing or falling back to a partial review).
+Getting write access for fork PRs requires switching to the
+`pull_request_target` trigger, which runs with the base repo's token and
+permissions against untrusted fork code — this action does not currently
+document or test a safe `pull_request_target` setup, so it isn't supported
+yet.
+
 ## Inputs and outputs
 
-`action.yml` is the single source of truth for every input (36 total) and
-its default, and for the 13 outputs this action produces. See it directly
+`action.yml` is the single source of truth for every input (37 total) and
+its default, and for the 14 outputs this action produces. See it directly
 for the full, exact list.
 
 The inputs worth knowing about first:
