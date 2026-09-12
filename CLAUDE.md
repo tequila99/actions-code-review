@@ -54,11 +54,11 @@ Strict TDD, one logical change per commit:
    git diff --exit-code dist/   # must be clean — see below
    ```
    `npm run all` runs the first four in sequence. `npm run lint` also checks
-   formatting — ESLint (JavaScript Standard Style, see `eslint.config.js`)
+   formatting — ESLint (JavaScript Standard Style, see `eslint.config.mjs`)
    is the sole formatter for `.ts`/`.js`/`.mjs`, no Prettier; run `npm run
    format` (`eslint --fix`) to auto-fix. Non-JS files (`package.json`,
    `action.yml`, workflow YAML, `README.md`) aren't auto-formatted by
-   anything — a deliberate trade-off, see `eslint.config.js`'s top comment.
+   anything — a deliberate trade-off, see `eslint.config.mjs`'s top comment.
 
 **`dist/index.js` must always be rebuilt and committed alongside any `src/`
 change.** GitHub Actions runs the committed bundle directly, no `npm

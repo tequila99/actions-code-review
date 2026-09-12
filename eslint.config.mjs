@@ -244,14 +244,15 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['**/*.ts', '**/*.mjs', 'eslint.config.js'],
+    files: ['**/*.ts', '**/*.mjs', 'eslint.config.mjs'],
     rules: STANDARD_STYLE_RULES
   },
   {
     files: ['**/*.ts'],
     rules: {
-      // Не чрезмерно строго на этапе 0 — цель tooling-каркас, а не
-      // финальная строгость линта. Ужесточение — по мере роста кодовой базы.
+      // Kept lenient (allows a leading-underscore escape hatch) rather than a
+      // hard ban — an unused destructured field or catch binding sometimes
+      // documents intent better than restructuring the code to avoid it.
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
@@ -259,7 +260,7 @@ export default tseslint.config(
     }
   },
   {
-    files: ['**/*.mjs', 'eslint.config.js'],
+    files: ['**/*.mjs', 'eslint.config.mjs'],
     languageOptions: {
       sourceType: 'module'
     }
