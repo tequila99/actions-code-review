@@ -56,8 +56,11 @@ export interface RetryOptions {
   maxDelayMs?: number
   /** Aborts the whole retry loop immediately, including any pending wait (T3.28). */
   signal?: AbortSignal
-  /** Injectable for tests — must NOT actually sleep in test code. Default: real `setTimeout`. */
-  sleep?: (ms: number) => Promise<void>
+  /**
+   * Injectable for tests — must NOT actually sleep in test code. Default:
+   * `defaultSleep` (real `setTimeout`, abortable via the second parameter).
+   */
+  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
   /** Injectable jitter source for tests. Default `Math.random`. */
   random?: () => number
 }
@@ -66,8 +69,30 @@ const DEFAULT_MAX_ATTEMPTS = 4
 const DEFAULT_BASE_DELAY_MS = 300
 const DEFAULT_MAX_DELAY_MS = 10_000
 
-function defaultSleep (ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+/**
+ * `setTimeout` alone ignores `AbortSignal`, so a backoff wait would keep the
+ * process alive (and delay the caller's own abort handling) for the full
+ * `delayMs` even after the run-level signal fires. Wiring the listener here
+ * makes an in-progress wait cancel as soon as the signal aborts, rejecting
+ * with `signal.reason` so the caller sees the same reason it would have on
+ * an already-aborted signal (see the `signal?.aborted` check in `withRetry`).
+ */
+export function defaultSleep (ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason)
+      return
+    }
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(signal.reason)
+      },
+      { once: true }
+    )
+  })
 }
 
 /** `AbortSignal.timeout()`/manual-abort errors surface as `TimeoutError`/`AbortError` (DOMException
@@ -95,6 +120,12 @@ function hasStringCode (err: unknown): err is { code: string } {
   )
 }
 
+/** Matches undici/fetch's own wording for a transport failure, e.g. `TypeError:
+ * fetch failed`. Deliberately narrow — a bare `TypeError` is also what a
+ * logic bug (e.g. destructuring `undefined`) throws, and that must NOT be
+ * retried (#21). */
+const NETWORK_ERROR_MESSAGE = /fetch failed|network|ECONN|socket/i
+
 /**
  * A "network error" is a low-level transport failure (connection
  * reset/refused, DNS failure, etc.) — always retryable (FR-22). Anything
@@ -102,10 +133,22 @@ function hasStringCode (err: unknown): err is { code: string } {
  * "no choices in response" logical error) is deliberately NOT retried:
  * retrying a malformed-response error rarely helps and risks masking a real
  * bug as slow flakiness.
+ *
+ * `fetch` wraps every transport failure in a `TypeError`, but so does any
+ * unrelated logic bug (e.g. `Cannot read properties of undefined`) — a bare
+ * `err instanceof TypeError` check can't tell those apart and would retry a
+ * real bug into a slow, confusing failure (#21). Undici puts the actual
+ * cause (with its `code`) on `TypeError#cause`, so a `TypeError` only counts
+ * as a network error when either its own message reads like a transport
+ * failure, or its `cause` carries a known network error code.
  */
 function isNetworkError (err: unknown): boolean {
-  if (err instanceof TypeError) return true
   if (hasStringCode(err)) return NETWORK_ERROR_CODES.has(err.code)
+  if (err instanceof TypeError) {
+    if (NETWORK_ERROR_MESSAGE.test(err.message)) return true
+    const cause = (err as { cause?: unknown }).cause
+    return hasStringCode(cause) && NETWORK_ERROR_CODES.has(cause.code)
+  }
   return false
 }
 
@@ -169,8 +212,15 @@ export async function withRetry<T> (
       const retryAfterMs = err instanceof HttpStatusError ? err.retryAfterMs : undefined
       const backoff = Math.min(maxDelayMs, baseDelayMs * 2 ** (attemptNumber - 1))
       const jitter = backoff * 0.5 * random()
-      const delayMs = Math.max(backoff + jitter, retryAfterMs ?? 0)
-      await sleep(delayMs)
+      // A server-supplied `Retry-After` can ask for an arbitrarily long wait
+      // (some providers use it to signal "come back in a while" rather than
+      // a precise rate-limit reset); without a ceiling that value overrides
+      // `maxDelayMs` entirely and can stall the run far longer than intended
+      // (#10b). `maxDelayMs * 6` gives `Retry-After` more headroom than plain
+      // backoff (which never exceeds `maxDelayMs`) while still bounding it —
+      // 60s with the default 10s `maxDelayMs`.
+      const delayMs = Math.min(Math.max(backoff + jitter, retryAfterMs ?? 0), maxDelayMs * 6)
+      await sleep(delayMs, signal)
     }
   }
 
