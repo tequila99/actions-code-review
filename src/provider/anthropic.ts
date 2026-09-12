@@ -30,7 +30,6 @@ import type {
   CompletionRequest,
   CompletionResponse,
   ProviderAdapter,
-  ProviderCapabilities,
   ToolCall,
   ToolSpec,
   TokenUsage
@@ -244,17 +243,6 @@ export class AnthropicAdapter implements ProviderAdapter {
 
   async complete (req: CompletionRequest): Promise<CompletionResponse> {
     return withRetry(() => this.performRequest(req), { signal: req.signal, ...this.config.retry })
-  }
-
-  /**
-   * No live probe (unlike `openai-compatible.ts`'s `capabilities()`) — the
-   * first-party Anthropic Messages API always supports tool calling and
-   * `output_config` structured output, so there is nothing uncertain to
-   * probe for. This method is also unused by any caller today
-   * (`capability-probe.ts`'s header comment) — a static shape is enough.
-   */
-  async capabilities (): Promise<ProviderCapabilities> {
-    return { toolCalling: true, jsonSchema: true, jsonObject: true }
   }
 
   private async performRequest (req: CompletionRequest): Promise<CompletionResponse> {

@@ -2,8 +2,7 @@ import { mock, type Mock } from 'node:test'
 import type {
   CompletionRequest,
   CompletionResponse,
-  ProviderAdapter,
-  ProviderCapabilities
+  ProviderAdapter
 } from '../../src/provider/types.ts'
 
 /**
@@ -16,13 +15,6 @@ import type {
  */
 export interface FakeProvider extends ProviderAdapter {
   complete: Mock<(req: CompletionRequest) => Promise<CompletionResponse>>
-  capabilities: Mock<() => Promise<ProviderCapabilities>>
-}
-
-const DEFAULT_CAPABILITIES: ProviderCapabilities = {
-  toolCalling: true,
-  jsonSchema: true,
-  jsonObject: true
 }
 
 /** Builds a well-formed `CompletionResponse` carrying the given findings-shaped JSON body. */
@@ -55,7 +47,6 @@ export function createFakeProvider (
       completeImpl
         ? async (req: CompletionRequest) => completeImpl(req)
         : async () => makeCompletionResponse()
-    ),
-    capabilities: mock.fn<() => Promise<ProviderCapabilities>>(async () => DEFAULT_CAPABILITIES)
+    )
   }
 }

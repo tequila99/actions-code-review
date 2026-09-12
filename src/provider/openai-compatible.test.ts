@@ -480,28 +480,6 @@ test('TA.3: usage.cost present but not a number -> ignored as absent, no excepti
   )
 })
 
-test('capabilities(): resolves to a sane shape on a healthy provider (not part of T3.x, smoke coverage)', async () => {
-  const adapter = createAdapter()
-  await withMockedFetch(
-    () => jsonResponse({ choices: [{ message: { role: 'assistant', content: '{"ok":true}' } }] }),
-    async () => {
-      const caps = await adapter.capabilities()
-      assert.deepEqual(caps, { toolCalling: true, jsonSchema: true, jsonObject: true })
-    }
-  )
-})
-
-test('capabilities(): degrades to all-false on a failing provider (not part of T3.x, smoke coverage)', async () => {
-  const adapter = createAdapter()
-  await withMockedFetch(
-    () => textResponse('nope', { status: 500 }),
-    async () => {
-      const caps = await adapter.capabilities()
-      assert.deepEqual(caps, { toolCalling: false, jsonSchema: false, jsonObject: false })
-    }
-  )
-})
-
 const SCHEMA = {
   type: 'object',
   properties: { ok: { type: 'boolean' } },

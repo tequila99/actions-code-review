@@ -88,14 +88,7 @@ export interface CompletionResponse {
   raw: unknown
 }
 
-export interface ProviderCapabilities {
-  toolCalling: boolean
-  jsonSchema: boolean
-  jsonObject: boolean
-}
-
 export interface ProviderAdapter {
   readonly flavor: 'openai' | 'anthropic' | 'gemini'
   complete(req: CompletionRequest): Promise<CompletionResponse>
-  capabilities(): Promise<ProviderCapabilities>
 }

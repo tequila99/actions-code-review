@@ -1,10 +1,7 @@
 /**
- * Tool-calling capability probe (FR-26, §11.6). Distinct from
- * `ProviderAdapter.capabilities()` (a stage-3 placeholder that only checks
- * structured-output support, never sends `tools`, and is otherwise unused —
- * see CHANGELOG.md/TODO.md): this sends an actual trivial tool and checks
- * whether the response comes back as a real `tool_calls` entry, which is
- * the one thing `mode: agent` cannot work without.
+ * Tool-calling capability probe (FR-26, §11.6). Sends an actual trivial tool
+ * and checks whether the response comes back as a real `tool_calls` entry,
+ * which is the one thing `mode: agent` cannot work without.
  */
 
 import { logger } from '../util/logger.ts'

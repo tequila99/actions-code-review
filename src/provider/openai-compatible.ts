@@ -15,7 +15,6 @@ import type {
   CompletionRequest,
   CompletionResponse,
   ProviderAdapter,
-  ProviderCapabilities,
   ToolCall,
   ToolSpec,
   TokenUsage
@@ -273,26 +272,6 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         ? (response.raw as Record<string, unknown>)
         : {}
     return { ...response, raw: { ...rawBase, degradationStage: stage } }
-  }
-
-  async capabilities (): Promise<ProviderCapabilities> {
-    try {
-      await this.complete({
-        system:
-          'You are a capability probe. Respond with a JSON object {"ok": true} and nothing else.',
-        messages: [{ role: 'user', content: 'probe' }],
-        responseSchema: {
-          type: 'object',
-          properties: { ok: { type: 'boolean' } },
-          required: ['ok']
-        },
-        maxOutputTokens: 32,
-        signal: AbortSignal.timeout(this.config.requestTimeoutMs)
-      })
-      return { toolCalling: true, jsonSchema: true, jsonObject: true }
-    } catch {
-      return { toolCalling: false, jsonSchema: false, jsonObject: false }
-    }
   }
 
   private async sendOnce (

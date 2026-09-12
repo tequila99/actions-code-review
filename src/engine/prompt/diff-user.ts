@@ -6,9 +6,9 @@
  *   already-loaded context text so it never touches the filesystem itself.
  * - `loadContextText` — the one async, filesystem-touching piece
  *   (`context.always`/`context.layers`, FR-36). Plain `fs.readFile` from
- *   `GITHUB_WORKSPACE`/`process.cwd()` for this stage (a full sandboxed
- *   `RepoAccess`, per PRD §7.2, is stage 7's `engine/tools/sandbox.ts`); the
- *   real reader is injectable (`readFile` param) so tests never touch disk.
+ *   `GITHUB_WORKSPACE`/`process.cwd()` for this stage (agent mode's fully
+ *   sandboxed file access is `engine/tools/sandbox.ts` instead); the real
+ *   reader is injectable (`readFile` param) so tests never touch disk.
  */
 
 import { readFile as fsReadFile } from 'node:fs/promises'

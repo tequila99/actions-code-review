@@ -149,20 +149,6 @@ for (const scenario of scenarios()) {
       }
     )
   })
-
-  test(`T9.23: ${scenario.flavor} adapter — capabilities() resolves to a well-formed shape`, async () => {
-    // openai's capabilities() makes a live probe call via complete(); anthropic's is static
-    // (see anthropic.ts) — mock fetch either way so neither ever touches the real network.
-    await withMockedFetch(
-      () => jsonResponse(scenario.textFixture),
-      async () => {
-        const caps = await scenario.adapter.capabilities()
-        assert.equal(typeof caps.toolCalling, 'boolean')
-        assert.equal(typeof caps.jsonSchema, 'boolean')
-        assert.equal(typeof caps.jsonObject, 'boolean')
-      }
-    )
-  })
 }
 
 // ---------------------------------------------------------------------------

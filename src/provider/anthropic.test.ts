@@ -336,12 +336,6 @@ test('T9.13: HTTP 529 overloaded_error is retried', async () => {
   )
 })
 
-test('T9.14: capabilities() reports native tool calling and structured-output support', async () => {
-  const adapter = createAdapter()
-  const caps = await adapter.capabilities()
-  assert.deepEqual(caps, { toolCalling: true, jsonSchema: true, jsonObject: true })
-})
-
 test('HTTP 401 is a meaningful, redacted ProviderError about an invalid api_key', async () => {
   await withMockedFetch(
     () => textResponse('{"type":"error","error":{"type":"authentication_error"}}', { status: 401 }),

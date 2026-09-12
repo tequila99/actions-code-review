@@ -24,21 +24,6 @@ export interface ReviewTarget {
 }
 
 /**
- * Minimal read-only repository access. PRD §7.2 types `ReviewContext.repo`
- * as the fully sandboxed `RepoAccess` (`read_file`/`list_files`/`grep`) that
- * `AgentEngine` needs (stage 7, `engine/tools/sandbox.ts`). `DiffEngine` does
- * not need that full surface — it loads `context.always`/`context.layers`
- * content directly via `prompt/diff-user.ts#loadContextText` (plain
- * `fs.readFile` from `GITHUB_WORKSPACE`/`cwd`, see CHANGELOG.md "Этап 4") —
- * so only the one method it could plausibly reuse is declared here. Kept
- * optional on `ReviewContext` so a stage-4 caller can omit it entirely
- * without breaking the interface stage 7 will fill in for real.
- */
-export interface RepoAccess {
-  readFile(path: string): Promise<string | null>
-}
-
-/**
  * The subset of a PR's own fields the prompt layer needs (title/description,
  * both untrusted — SEC-1/SEC-2). Deliberately a different shape (and name)
  * than `github/pull-request.ts`'s `PullRequestInfo`, which only carries
@@ -57,7 +42,6 @@ export interface ReviewContext {
   config: ResolvedConfig
   provider: ProviderAdapter
   target: ReviewTarget
-  repo?: RepoAccess
   pr: ReviewPullRequestInfo
   /** Overall run timeout (FR-23, `total_timeout_ms`). */
   signal: AbortSignal

@@ -50284,16 +50284,6 @@ var AnthropicAdapter = class {
   async complete(req) {
     return withRetry(() => this.performRequest(req), { signal: req.signal, ...this.config.retry });
   }
-  /**
-   * No live probe (unlike `openai-compatible.ts`'s `capabilities()`) — the
-   * first-party Anthropic Messages API always supports tool calling and
-   * `output_config` structured output, so there is nothing uncertain to
-   * probe for. This method is also unused by any caller today
-   * (`capability-probe.ts`'s header comment) — a static shape is enough.
-   */
-  async capabilities() {
-    return { toolCalling: true, jsonSchema: true, jsonObject: true };
-  }
   async performRequest(req) {
     const url2 = joinUrl(this.config.baseUrl, MESSAGES_PATH);
     const headers = buildHeaders(this.config.apiKey, this.config.headers);
@@ -50502,24 +50492,6 @@ var OpenAICompatibleAdapter = class {
     );
     const rawBase = response.raw !== null && typeof response.raw === "object" ? response.raw : {};
     return { ...response, raw: { ...rawBase, degradationStage: stage } };
-  }
-  async capabilities() {
-    try {
-      await this.complete({
-        system: 'You are a capability probe. Respond with a JSON object {"ok": true} and nothing else.',
-        messages: [{ role: "user", content: "probe" }],
-        responseSchema: {
-          type: "object",
-          properties: { ok: { type: "boolean" } },
-          required: ["ok"]
-        },
-        maxOutputTokens: 32,
-        signal: AbortSignal.timeout(this.config.requestTimeoutMs)
-      });
-      return { toolCalling: true, jsonSchema: true, jsonObject: true };
-    } catch {
-      return { toolCalling: false, jsonSchema: false, jsonObject: false };
-    }
   }
   async sendOnce(req, params) {
     return withRetry(() => this.performRequest(req, params), {
