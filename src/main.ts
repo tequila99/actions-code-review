@@ -36,6 +36,8 @@ import { estimateTokens } from './provider/token-estimate.ts'
 import { createProviderAdapter } from './provider/factory.ts'
 import { selectEngine } from './engine/selector.ts'
 import { logger } from './util/logger.ts'
+import { AppError } from './util/errors.ts'
+import { redact } from './util/secrets.ts'
 
 /** §8.2 PRD: the only allowed values of the `skipped_reason` output. */
 export type SkippedReason =
@@ -513,6 +515,12 @@ export async function run (): Promise<void> {
       )
     }
   } catch (error) {
-    core.setFailed(error instanceof Error ? error.message : String(error))
+    // AppError#toUserMessage() already appends the hint and redacts secrets
+    // (util/errors.ts); anything else (a bug, a thrown non-Error) still needs
+    // redaction before it can safely reach `core.setFailed` (THR-1/THR-2).
+    const message = error instanceof AppError
+      ? error.toUserMessage()
+      : redact(error instanceof Error ? error.message : String(error))
+    core.setFailed(message)
   }
 }
