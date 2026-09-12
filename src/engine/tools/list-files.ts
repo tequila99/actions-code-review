@@ -10,6 +10,7 @@
 import path from 'node:path'
 import { matchesGlob } from './glob-match.ts'
 import { walkWorkspace } from './walk.ts'
+import { truncate } from './truncate.ts'
 import type { ToolExecutionContext, ToolResult } from './registry.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 
@@ -29,12 +30,6 @@ export const LIST_FILES_SPEC: ToolSpec = {
 }
 
 const MAX_RESULTS = 500
-
-function truncate (content: string, maxBytes: number): string {
-  const buf = Buffer.from(content, 'utf8')
-  if (buf.byteLength <= maxBytes) return content
-  return `${buf.subarray(0, maxBytes).toString('utf8')}\n… (truncated, output exceeded ${maxBytes} bytes)`
-}
 
 export async function listFiles (args: unknown, ctx: ToolExecutionContext): Promise<ToolResult> {
   const a = (args ?? {}) as Record<string, unknown>

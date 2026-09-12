@@ -32,15 +32,16 @@ test('TU.3: WEB_SEARCH_SPEC tells the model not to search for itself or unrelate
   assert.match(WEB_SEARCH_SPEC.description, /not.*(itself|yourself|this (tool|model))/i)
 })
 
-test('TT.35: a successful call wraps the answer text in <untrusted_content>', async () => {
+test('TT.35: a successful call returns the answer text plain, unwrapped — SEC-2: agent-engine.ts ' +
+  'wraps every tool result in <untrusted_content> uniformly now, so wrapping here would double it ' +
+  '(see TZ3 in agent-engine.test.ts)', async () => {
   const ctx = makeToolContext('/repo')
   const result = await withMockedFetch(
     () => jsonResponse(openRouterCompletion('The answer is 42.')),
     () => webSearch({ query: 'what is the answer' }, ctx)
   )
   assert.equal(result.isError, false)
-  assert.match(result.content, /^<untrusted_content>/)
-  assert.match(result.content, /<\/untrusted_content>$/)
+  assert.equal(result.content.includes('<untrusted_content>'), false)
   assert.match(result.content, /The answer is 42\./)
 })
 

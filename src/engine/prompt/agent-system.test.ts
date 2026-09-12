@@ -58,6 +58,15 @@ test('TT.1: the system prompt tells the model dependency source (node_modules) i
   assert.match(prompt, /trained knowledge|own knowledge/i)
 })
 
+test('TZ4: the agent prompt extends the untrusted-content instruction to cover tool results too ' +
+  '(SEC-2) — unlike DiffEngine, AgentEngine\'s untrusted content also arrives via read_file/grep/' +
+  'get_diff/web_search results, not just the PR title/body/diff', () => {
+  const config = makeResolvedConfig()
+  const prompt = buildAgentSystemPrompt(config, [])
+  assert.match(prompt, /tool (result|output)/i)
+  assert.match(prompt, /data/i)
+})
+
 test('TJ.3: review.custom_instructions appears in the agent prompt, after focus/ignore/path_instructions and before UNTRUSTED_CONTENT_INSTRUCTION', () => {
   const config = makeResolvedConfig({
     review: {

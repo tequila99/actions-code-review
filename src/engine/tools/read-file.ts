@@ -7,6 +7,7 @@
 
 import { readFile as fsReadFile, stat } from 'node:fs/promises'
 import { resolveSandboxPath } from './sandbox.ts'
+import { truncate } from './truncate.ts'
 import type { ToolExecutionContext, ToolResult } from './registry.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 
@@ -14,7 +15,9 @@ export const READ_FILE_SPEC: ToolSpec = {
   name: 'read_file',
   description:
     'Read a file from the pull request repository checkout. Returns its content with 1-based ' +
-    'line numbers. Optionally restrict to a line range with start_line/end_line (both inclusive).',
+    'line numbers. Optionally restrict to a line range with start_line/end_line (both inclusive). ' +
+    'A file far larger than the tool output limit is refused unless start_line/end_line is given — ' +
+    'request a specific range instead.',
   parameters: {
     type: 'object',
     properties: {
@@ -25,6 +28,13 @@ export const READ_FILE_SPEC: ToolSpec = {
     required: ['path']
   }
 }
+
+/** TZ6: a file this many times over `tool_output_max_bytes`, read with no `start_line`/`end_line`,
+ * is refused rather than read whole and truncated after the fact — reading a multi-MB file into
+ * memory just to throw most of it away at the `truncate()` step wastes the read for no benefit the
+ * model can use (it never sees past the cutoff anyway). Checked from `stat()` before the read, so
+ * the file is never even opened in this case. */
+const STAT_REFUSAL_MULTIPLIER = 4
 
 /** A conservative binary check: a NUL byte anywhere in the first 8000 bytes
  * (same heuristic `git`/most diff tools use) means "don't try to decode
@@ -45,13 +55,6 @@ function numberLines (content: string, startLine?: number, endLine?: number): st
   return out.join('\n')
 }
 
-function truncate (content: string, maxBytes: number): string {
-  const buf = Buffer.from(content, 'utf8')
-  if (buf.byteLength <= maxBytes) return content
-  const truncated = buf.subarray(0, maxBytes).toString('utf8')
-  return `${truncated}\n… (truncated, output exceeded ${maxBytes} bytes)`
-}
-
 export async function readFile (args: unknown, ctx: ToolExecutionContext): Promise<ToolResult> {
   const a = (args ?? {}) as Record<string, unknown>
   const startLine = typeof a.start_line === 'number' ? a.start_line : undefined
@@ -70,6 +73,16 @@ export async function readFile (args: unknown, ctx: ToolExecutionContext): Promi
   }
   if (!fileStat.isFile()) {
     return { content: `read_file failed: not a regular file: ${String(a.path)}`, isError: true }
+  }
+
+  const hasRange = startLine !== undefined || endLine !== undefined
+  if (!hasRange && fileStat.size > ctx.toolOutputMaxBytes * STAT_REFUSAL_MULTIPLIER) {
+    return {
+      content:
+        `read_file failed: ${String(a.path)} is ${fileStat.size} bytes, too large to read in full — ` +
+        'call again with start_line/end_line to request a specific range.',
+      isError: true
+    }
   }
 
   const buffer = await fsReadFile(resolved.absolutePath)
