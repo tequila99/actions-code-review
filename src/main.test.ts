@@ -10,6 +10,7 @@ import { buildStickyBody } from './github/sticky-comment.ts'
 import { logger } from './util/logger.ts'
 import { CapabilityError, ProviderError } from './util/errors.ts'
 import { registerSecret } from './util/secrets.ts'
+import { captureStdoutWrites, parseSetOutputCommands } from '../test/helpers/output-capture.ts'
 
 // NB: `@actions/core` is a pure ESM package — its named exports are live
 // bindings and cannot be monkey-patched with `t.mock.method(core, 'setFailed', ...)`
@@ -19,15 +20,6 @@ import { registerSecret } from './util/secrets.ts'
 // on `process.stdout.write` (a plain mutable method, not an ESM binding) and
 // always restore `process.exitCode` afterwards so a passing test suite never
 // leaks a non-zero exit code to the `node --test` process itself.
-
-function captureStdoutWrites (t: import('node:test').TestContext): string[] {
-  const writes: string[] = []
-  t.mock.method(process.stdout, 'write', (chunk: string | Uint8Array) => {
-    writes.push(String(chunk))
-    return true
-  })
-  return writes
-}
 
 test('T0.1: run is exported and is a function', () => {
   assert.equal(typeof run, 'function')
@@ -120,19 +112,6 @@ const PRD_OUTPUT_KEYS = [
   'truncated',
   'findings_filtered'
 ]
-
-/** Parses `::set-output name=<key>::<value>` commands out of captured stdout writes. */
-function parseSetOutputCommands (writes: string[]): Record<string, string> {
-  const result: Record<string, string> = {}
-  const pattern = /^::set-output name=([^:]+)::(.*)$/
-  for (const write of writes) {
-    for (const line of write.split(/\r?\n/)) {
-      const match = pattern.exec(line)
-      if (match) result[match[1]!] = match[2]!
-    }
-  }
-  return result
-}
 
 function samplePositionMap () {
   return buildPositionMap([
