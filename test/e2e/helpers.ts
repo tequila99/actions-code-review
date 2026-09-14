@@ -1,5 +1,5 @@
-import type { TestContext } from 'node:test'
 import { createFakeProvider, makeCompletionResponse } from '../helpers/fake-provider.ts'
+export { captureStdoutWrites, parseSetOutputCommands } from '../helpers/output-capture.ts'
 import type { CompletionRequest, CompletionResponse } from '../../src/provider/types.ts'
 import { selectEngine } from '../../src/engine/selector.ts'
 import type { ResolvedConfig } from '../../src/config/schema.ts'
@@ -18,29 +18,6 @@ import type { ReviewContext } from '../../src/engine/types.ts'
  * `ProviderAdapter` instead of `provider/factory.ts`'s real
  * (fetch-calling) one.
  */
-
-/** Captures `core.setFailed`/`core.setOutput`'s underlying `process.stdout.write` calls. */
-export function captureStdoutWrites (t: TestContext): string[] {
-  const writes: string[] = []
-  t.mock.method(process.stdout, 'write', (chunk: string | Uint8Array) => {
-    writes.push(String(chunk))
-    return true
-  })
-  return writes
-}
-
-/** Parses `::set-output name=<key>::<value>` commands out of captured stdout writes. */
-export function parseSetOutputCommands (writes: string[]): Record<string, string> {
-  const result: Record<string, string> = {}
-  const pattern = /^::set-output name=([^:]+)::(.*)$/
-  for (const write of writes) {
-    for (const line of write.split(/\r?\n/)) {
-      const match = pattern.exec(line)
-      if (match) result[match[1]!] = match[2]!
-    }
-  }
-  return result
-}
 
 /**
  * Builds a synthetic unified diff (GitHub `mediaType: {format: 'diff'}`
