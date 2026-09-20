@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeAndValidateFinding, normalizeFindings } from './findings.ts'
+import { normalizeAndValidateFinding, normalizeFindings, defaultSummary, isDefaultSummary } from './findings.ts'
 
 const VALID_PATHS = new Set(['src/a.ts', 'src/b.ts'])
 
@@ -125,4 +125,14 @@ test('normalizeFindings batches validation, invoking onWarning/onDrop and keepin
   assert.equal(findings.length, 2)
   assert.equal(warnings.length, 1)
   assert.equal(drops.length, 2)
+})
+
+test('TAD.13: isDefaultSummary recognises every text defaultSummary can produce, and only those', () => {
+  const finding = { path: 'a.ts', line: 1, severity: 'low' as const, category: 'x', message: 'm' }
+  assert.equal(isDefaultSummary(defaultSummary([])), true)
+  assert.equal(isDefaultSummary(defaultSummary([finding])), true)
+  assert.equal(isDefaultSummary(defaultSummary([finding, finding, finding])), true)
+  assert.equal(isDefaultSummary('The change looks fine overall.'), false)
+  assert.equal(isDefaultSummary('No issues found. But the auth flow is fragile.'), false)
+  assert.equal(isDefaultSummary(''), false)
 })

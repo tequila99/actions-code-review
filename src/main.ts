@@ -374,6 +374,7 @@ export async function publishAndBuildOutputs (input: PublishPhaseInput): Promise
     postedFindings: publishResult.postedFindings,
     unpostedFindings: unpostedForSummary,
     notes: input.reviewResult.notes,
+    summary: input.reviewResult.summary,
     truncated,
     skippedFiles: input.filesSkipped,
     tokensInput: input.reviewResult.usage.promptTokens,

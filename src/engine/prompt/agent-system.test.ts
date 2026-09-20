@@ -84,3 +84,10 @@ test('TJ.3: review.custom_instructions appears in the agent prompt, after focus/
   assert.ok(prompt.indexOf('Be careful.') < customIdx)
   assert.ok(customIdx < prompt.indexOf(UNTRUSTED_CONTENT_INSTRUCTION))
 })
+
+test('TAD.20: the agent prompt asks for a 2-3 paragraph summary of bounded size', () => {
+  const registry = buildToolRegistry([])
+  const prompt = buildAgentSystemPrompt(makeResolvedConfig(), registry.specs)
+  assert.match(prompt, /2-3 short paragraphs/)
+  assert.match(prompt, /1500 characters/)
+})

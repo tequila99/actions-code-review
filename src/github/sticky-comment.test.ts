@@ -420,3 +420,32 @@ test('TAB9: a single oversized entry with no Findings/Notes sections to trim -> 
   assert.ok(body.includes(stateBlock))
   assert.match(body, /trimmed: exceeds the GitHub comment length limit/)
 })
+
+test('TAD.18: when a single entry is over budget, its Summary section is cut before Findings/Notes', () => {
+  const findingLines = Array.from({ length: 40 }, (_, i) => `- finding number ${i}`)
+  const entry = (summaryLen: number) =>
+    [
+      ENTRY_START,
+      '',
+      '### Review #1 — 2026-01-01',
+      '',
+      '- **Mode:** diff',
+      '',
+      '### Summary',
+      '',
+      'S'.repeat(summaryLen),
+      '',
+      '### Findings not posted inline',
+      ...findingLines,
+      '',
+      ENTRY_END
+    ].join('\n')
+  const stateBlock = buildStateBlock({ last_reviewed_sha: 'deadbeef', version: 1 })
+  // Sized so the entry only fits once the Summary section is gone.
+  const body = buildStickyBody(null, entry(GITHUB_COMMENT_MAX_CHARS), STICKY_HISTORY_MAX_ENTRIES, 'en', stateBlock)
+
+  assert.ok(body.length < GITHUB_COMMENT_MAX_CHARS)
+  assert.ok(body.includes('finding number 39'), 'findings must survive')
+  assert.ok(!body.includes('SSSSSSSSSS'), 'the oversized summary must be the part that was cut')
+  assert.equal(countEntries(body), 1)
+})
