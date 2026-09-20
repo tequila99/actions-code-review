@@ -57757,9 +57757,9 @@ async function publishAndBuildOutputs(input2) {
     summaryOnly: input2.config.review.summary_only
   });
   const unpostedForSummary = [...publishResult.unpostedFindings, ...overflow];
-  if (input.config.dry_run) {
+  if (input2.config.dry_run) {
     logger.group("dry-run: findings", () => {
-      logger.info(formatDryRunSummary(input.reviewResult.summary, input.reviewResult.notes));
+      logger.info(formatDryRunSummary(input2.reviewResult.summary, input2.reviewResult.notes));
       logger.info(formatDryRunFindings(publishResult.postedFindings, unpostedForSummary));
     });
   }
