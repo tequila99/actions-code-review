@@ -3,8 +3,8 @@ name: Claude Code Review
 # Opt-in review of a pull request by Claude Code: add the `claude-review`
 # label to run it, and it re-runs on every new push while the label stays.
 # Note: claude-code-action refuses to run unless this file is identical on the
-# repository's default branch (main), so a change here only takes effect for
-# PRs once it has been released from develop to main.
+# repository's default branch (develop), so a change here only takes effect for
+# PRs once it has been merged into develop (and PR branches must merge develop).
 
 on:
   pull_request:
@@ -50,6 +50,10 @@ jobs:
           # Step Summary report of the run; unlike show_full_output it cannot leak secrets.
           display_report: true
           include_fix_links: false
+          # TEMPORARY (#37): prints every tool call and result to the job log, to
+          # find out which calls get permission-denied. Logs can be public and
+          # secrets are only masked point-wise, so remove this after diagnosing.
+          show_full_output: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
