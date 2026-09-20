@@ -147,6 +147,43 @@ export function formatReviewEntry (params: FormatReviewEntryParams): string {
   return lines.join('\n')
 }
 
+function formatLocation (finding: Finding): string {
+  return finding.endLine && finding.endLine !== finding.line
+    ? `${finding.path}:${finding.line}-${finding.endLine}`
+    : `${finding.path}:${finding.line}`
+}
+
+/**
+ * Plain-text listing of every finding for a `dry_run` log (issue #12): a dry
+ * run publishes nothing, so this is the only place the full messages can be
+ * read without a Job Summary (which local runs don't have). Messages are
+ * printed unclipped — the whole point is to judge the review's quality.
+ */
+export function formatDryRunFindings (posted: Finding[], unposted: Finding[]): string {
+  if (posted.length === 0 && unposted.length === 0) return 'No findings.'
+
+  const section = (title: string, findings: Finding[]): string[] =>
+    findings.length === 0
+      ? []
+      : [
+          `${title} (${findings.length}):`,
+          ...findings.flatMap((f) => [
+            '',
+            `[${f.severity}/${f.category}] ${formatLocation(f)}`,
+            f.message,
+            ...(f.suggestion !== undefined ? ['Suggested replacement:', f.suggestion] : [])
+          ]),
+          ''
+        ]
+
+  return [
+    ...section('Would post inline', posted),
+    ...section('Summary only', unposted)
+  ]
+    .join('\n')
+    .trimEnd()
+}
+
 /**
  * Builds the Job Summary markdown (FR-71, T5.44): a pipe-table of every
  * finding (posted + unposted) plus the same headline metrics.

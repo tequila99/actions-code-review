@@ -31680,6 +31680,26 @@ function formatReviewEntry(params) {
   lines.push("", ENTRY_END);
   return lines.join("\n");
 }
+function formatLocation(finding) {
+  return finding.endLine && finding.endLine !== finding.line ? `${finding.path}:${finding.line}-${finding.endLine}` : `${finding.path}:${finding.line}`;
+}
+function formatDryRunFindings(posted, unposted) {
+  if (posted.length === 0 && unposted.length === 0) return "No findings.";
+  const section = (title, findings) => findings.length === 0 ? [] : [
+    `${title} (${findings.length}):`,
+    ...findings.flatMap((f) => [
+      "",
+      `[${f.severity}/${f.category}] ${formatLocation(f)}`,
+      f.message,
+      ...f.suggestion !== void 0 ? ["Suggested replacement:", f.suggestion] : []
+    ]),
+    ""
+  ];
+  return [
+    ...section("Would post inline", posted),
+    ...section("Summary only", unposted)
+  ].join("\n").trimEnd();
+}
 function formatJobSummary(params) {
   const allFindings = [...params.postedFindings, ...params.unpostedFindings];
   const lines = ["## AI Code Review", ""];
@@ -52571,6 +52591,11 @@ async function publishAndBuildOutputs(input) {
     summaryOnly: input.config.review.summary_only
   });
   const unpostedForSummary = [...publishResult.unpostedFindings, ...overflow];
+  if (input.config.dry_run) {
+    logger.group("dry-run: findings", () => {
+      logger.info(formatDryRunFindings(publishResult.postedFindings, unpostedForSummary));
+    });
+  }
   const dedupedSeverityMax = severityMax(deduped);
   const costEstimateUsd = resolveCostEstimateUsd(
     {
