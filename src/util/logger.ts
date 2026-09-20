@@ -59,7 +59,7 @@ function prepare (message: string): string {
 
 /** How much of a single field (prompt, tool output, diff hunk) a debug log line keeps before
  * clipping — bounds Actions log size when `config.debug: true` dumps model I/O. */
-const DEBUG_LOG_MAX_LENGTH = 2000
+const DEBUG_LOG_MAX_LENGTH = 20000
 
 /** Clips `text` to `maxLength`, appending a marker so a truncated debug field never reads as
  * complete. Not a redaction step by itself — callers still go through `debugLog`/`logger.info`,

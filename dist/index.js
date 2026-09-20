@@ -31824,7 +31824,7 @@ function sanitizeUrls(text) {
 function prepare(message) {
   return redact(sanitizeUrls(message));
 }
-var DEBUG_LOG_MAX_LENGTH = 2e3;
+var DEBUG_LOG_MAX_LENGTH = 2e4;
 function truncateForLog(text, maxLength = DEBUG_LOG_MAX_LENGTH) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\u2026(truncated)` : text;
 }
