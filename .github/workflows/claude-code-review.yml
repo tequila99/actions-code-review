@@ -47,13 +47,9 @@ jobs:
           # Post inline comments immediately instead of buffering them until the
           # session ends: a run cut short by --max-turns keeps what it found.
           classify_inline_comments: false
-          # Step Summary report of the run; unlike show_full_output it cannot leak secrets.
+          # Step Summary report of the run; unlike a full transcript in the job log it cannot leak secrets.
           display_report: true
           include_fix_links: false
-          # TEMPORARY (#37): prints every tool call and result to the job log, to
-          # find out which calls get permission-denied. Logs can be public and
-          # secrets are only masked point-wise, so remove this after diagnosing.
-          show_full_output: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -111,16 +107,26 @@ jobs:
             `gh pr diff` не подходит: он отдаёт и `dist/index.js` (сборка, тысячи строк
             шума). Метаданные PR — `gh pr view`. Файлы читай инструментами Read/Grep/Glob.
 
+            Разрешены только простые команды `git diff`, `git log`, `git show`,
+            `gh pr view`, `gh pr diff`, `gh pr comment` — по одной за вызов, без
+            пайпов, `&&` и `2>&1`. Не запускай `git fetch` (`origin/<base>` уже
+            загружен), `npm`, `npx`, линт и тесты: проверки делает CI, а код PR в этой
+            джобе исполняться не должен.
+
             Ты ограничен числом ходов, поэтому не исследуй бесконечно. Оставляй
             inline-комментарий к конкретной строке сразу, как нашёл проблему, а не в
-            конце. Краткое summary с общей оценкой PR оставь, как только покрыл дифф, не
-            дожидаясь исчерпания ходов.
+            конце. «PR готов к мержу» — не ответ по умолчанию: сначала пройди по
+            инвариантам проекта выше и по каждому убедись, что он соблюдён.
+
+            Обязательный последний шаг, даже если замечаний нет: опубликуй итог через
+            `gh pr comment ${{ github.event.pull_request.number }} --body "..."` —
+            краткая общая оценка PR и список найденных проблем.
 
             Все комментарии — на русском языке.
-          # The default model is Opus with a 1M context (~1.20 USD for one review);
-          # Sonnet is enough here. Read-only tools are listed explicitly so the run
-          # doesn't burn turns on permission denials.
+          # Opus (~1.20 USD for one review): Sonnet missed findings that a local
+          # run found. Read-only tools are listed explicitly so the run doesn't
+          # burn turns on permission denials.
           claude_args: |-
-            --model claude-sonnet-5
+            --model claude-opus-5
             --max-turns 45
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
