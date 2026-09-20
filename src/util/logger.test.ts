@@ -96,7 +96,11 @@ test('TL.3: truncateForLog leaves short text untouched and clips long text with 
   const short = 'a short line'
   assert.equal(truncateForLog(short), short)
 
-  const long = 'x'.repeat(3000)
+  // The default must fit a typical reasoning-model response (issue #12).
+  const medium = 'y'.repeat(15000)
+  assert.equal(truncateForLog(medium), medium)
+
+  const long = 'x'.repeat(30000)
   const clipped = truncateForLog(long)
   assert.ok(clipped.length < long.length)
   assert.ok(clipped.endsWith('…(truncated)'))

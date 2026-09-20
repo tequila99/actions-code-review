@@ -1387,3 +1387,89 @@ test('T9.25: AgentEngine runs a full tool-loop end-to-end against a real Anthrop
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// Issue #14: a model may batch `post_comment` calls and `finish` into one
+// response (seen with x-ai/grok-4.6). `finish` used to end the loop before
+// the sibling calls ran, so the findings were silently lost.
+
+const batchedComment = (id: string, line: number) => ({
+  id,
+  name: 'post_comment',
+  arguments: { path: 'a.ts', line, severity: 'high', category: 'correctness', message: `bug at ${line}` }
+})
+
+test('TAB.1: post_comment calls batched before finish in one response are kept', async () => {
+  await withAgentEnv(async () => {
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({
+        toolCalls: [
+          batchedComment('1', 1),
+          batchedComment('2', 2),
+          { id: '3', name: 'finish', arguments: { summary: 'Two regressions.' } }
+        ]
+      })
+    )
+    const result = await new AgentEngine().review(makeCtx(provider))
+    assert.equal(provider.complete.mock.callCount(), 1)
+    assert.equal(result.findings.length, 2)
+    assert.equal(result.summary, 'Two regressions.')
+    assert.equal(result.truncated, false)
+  })
+})
+
+test('TAB.2: post_comment listed after finish in the same response is kept too', async () => {
+  await withAgentEnv(async () => {
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({
+        toolCalls: [{ id: '1', name: 'finish', arguments: { summary: 'One regression.' } }, batchedComment('2', 5)]
+      })
+    )
+    const result = await new AgentEngine().review(makeCtx(provider))
+    assert.equal(result.findings.length, 1)
+    assert.equal(result.findings[0]!.line, 5)
+    assert.equal(result.summary, 'One regression.')
+  })
+})
+
+test('TAB.3: a batched finish still honours agent_max_tool_calls for the sibling post_comment calls', async () => {
+  await withAgentEnv(async () => {
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({
+        toolCalls: [
+          batchedComment('1', 1),
+          batchedComment('2', 2),
+          batchedComment('3', 3),
+          { id: '4', name: 'finish', arguments: { summary: 'Three.' } }
+        ]
+      })
+    )
+    const result = await new AgentEngine().review(
+      makeCtx(provider, { config: { agent: { max_tool_calls: 2 } } })
+    )
+    assert.equal(result.findings.length, 2)
+  })
+})
+
+test('TAC.5: config.debug: true logs the finish summary the model gave', async (t) => {
+  await withAgentEnv(async () => {
+    const info = t.mock.method(logger, 'info', () => {})
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({ toolCalls: [{ id: '1', name: 'finish', arguments: { summary: 'Nothing wrong: FINISH_MARKER' } }] })
+    )
+    await new AgentEngine().review(makeCtx(provider, { config: { debug: true } }))
+    const messages = info.mock.calls.map((c) => c.arguments[0] as string)
+    assert.ok(messages.some((m) => /finish/i.test(m) && m.includes('FINISH_MARKER')))
+  })
+})
+
+test('TAC.6: config.debug: false does not log the finish summary', async (t) => {
+  await withAgentEnv(async () => {
+    const info = t.mock.method(logger, 'info', () => {})
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({ toolCalls: [{ id: '1', name: 'finish', arguments: { summary: 'FINISH_MARKER' } }] })
+    )
+    await new AgentEngine().review(makeCtx(provider))
+    assert.equal(info.mock.calls.length, 0)
+  })
+})

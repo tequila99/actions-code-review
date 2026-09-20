@@ -12,7 +12,13 @@ import {
   shouldFailFromMax,
   type SeverityMax
 } from './report/severity.ts'
-import { formatReviewEntry, formatJobSummary, type FormatSummaryParams } from './report/format.ts'
+import {
+  formatReviewEntry,
+  formatJobSummary,
+  formatDryRunFindings,
+  formatDryRunSummary,
+  type FormatSummaryParams
+} from './report/format.ts'
 import { resolveCostEstimateUsd, estimateCost, isBudgetTrackable, toPricing } from './report/cost.ts'
 import { publishReview, listExistingReviewComments } from './github/review.ts'
 import {
@@ -343,6 +349,13 @@ export async function publishAndBuildOutputs (input: PublishPhaseInput): Promise
   })
 
   const unpostedForSummary = [...publishResult.unpostedFindings, ...overflow]
+
+  if (input.config.dry_run) {
+    logger.group('dry-run: findings', () => {
+      logger.info(formatDryRunSummary(input.reviewResult.summary, input.reviewResult.notes))
+      logger.info(formatDryRunFindings(publishResult.postedFindings, unpostedForSummary))
+    })
+  }
   const dedupedSeverityMax: SeverityMax = severityMax(deduped)
   const costEstimateUsd = resolveCostEstimateUsd(
     {

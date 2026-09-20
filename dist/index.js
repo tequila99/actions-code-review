@@ -20358,36 +20358,38 @@ var require_Alias = __commonJS({
           if (node2.anchor === this.source)
             found = node2;
         }
+        if (found && ctx) {
+          const { anchors: anchors2, doc: doc2, maxAliasCount } = ctx;
+          let data = anchors2.get(found);
+          if (!data) {
+            toJS.toJS(found, null, ctx);
+            data = anchors2.get(found);
+          }
+          if (data?.res === void 0) {
+            const msg = "This should not happen: Alias anchor was not resolved?";
+            throw new ReferenceError(msg);
+          }
+          if (maxAliasCount >= 0) {
+            data.count += 1;
+            if (data.aliasCount === 0)
+              data.aliasCount = getAliasCount(doc2, found, anchors2);
+            if (data.count * data.aliasCount > maxAliasCount) {
+              const msg = "Excessive alias count indicates a resource exhaustion attack";
+              throw new ReferenceError(msg);
+            }
+          }
+        }
         return found;
       }
       toJSON(_arg, ctx) {
         if (!ctx)
           return { source: this.source };
-        const { anchors: anchors2, doc, maxAliasCount } = ctx;
-        const source = this.resolve(doc, ctx);
+        const source = this.resolve(ctx.doc, ctx);
         if (!source) {
           const msg = `Unresolved alias (the anchor must be set before the alias): ${this.source}`;
           throw new ReferenceError(msg);
         }
-        let data = anchors2.get(source);
-        if (!data) {
-          toJS.toJS(source, null, ctx);
-          data = anchors2.get(source);
-        }
-        if (data?.res === void 0) {
-          const msg = "This should not happen: Alias anchor was not resolved?";
-          throw new ReferenceError(msg);
-        }
-        if (maxAliasCount >= 0) {
-          data.count += 1;
-          if (data.aliasCount === 0)
-            data.aliasCount = getAliasCount(doc, source, anchors2);
-          if (data.count * data.aliasCount > maxAliasCount) {
-            const msg = "Excessive alias count indicates a resource exhaustion attack";
-            throw new ReferenceError(msg);
-          }
-        }
-        return data.res;
+        return ctx.anchors.get(source).res;
       }
       toString(ctx, _onComment, _onChompKeep) {
         const src = `*${this.source}`;
@@ -24389,37 +24391,38 @@ var require_resolve_flow_scalar = __commonJS({
       }
       if (badChar)
         onError(0, "BAD_SCALAR_START", `Plain value cannot start with ${badChar}`);
-      return foldLines(source);
+      return unfoldLines(source);
     }
     function singleQuotedValue(source, onError) {
       if (source[source.length - 1] !== "'" || source.length === 1)
         onError(source.length, "MISSING_CHAR", "Missing closing 'quote");
-      return foldLines(source.slice(1, -1)).replace(/''/g, "'");
+      return unfoldLines(source.slice(1, -1)).replace(/''/g, "'");
     }
-    function foldLines(source) {
-      let first, line;
-      try {
-        first = new RegExp("(.*?)(?<![ 	])[ 	]*\r?\n", "sy");
-        line = new RegExp("[ 	]*(.*?)(?:(?<![ 	])[ 	]*)?\r?\n", "sy");
-      } catch {
-        first = /(.*?)[ \t]*\r?\n/sy;
-        line = /[ \t]*(.*?)[ \t]*\r?\n/sy;
-      }
-      let match2 = first.exec(source);
+    function unfoldLines(source) {
+      const line = /(.*?)\r?\n/sy;
+      let match2 = line.exec(source);
       if (!match2)
         return source;
-      let res = match2[1];
+      let trimEnd, trimBoth;
+      try {
+        trimEnd = new RegExp("(?<![ 	])[ 	]+$");
+        trimBoth = new RegExp("^[ 	]+|(?<![ 	])[ 	]+$", "g");
+      } catch {
+        trimEnd = /[ \t]+$/;
+        trimBoth = /^[ \t]+|[ \t]+$/g;
+      }
+      let res = match2[1].replace(trimEnd, "");
       let sep3 = " ";
-      let pos = first.lastIndex;
-      line.lastIndex = pos;
+      let pos = line.lastIndex;
       while (match2 = line.exec(source)) {
-        if (match2[1] === "") {
+        const lm = match2[1].replace(trimBoth, "");
+        if (lm === "") {
           if (sep3 === "\n")
             res += sep3;
           else
             sep3 = "\n";
         } else {
-          res += sep3 + match2[1];
+          res += sep3 + lm;
           sep3 = " ";
         }
         pos = line.lastIndex;
@@ -31680,6 +31683,33 @@ function formatReviewEntry(params) {
   lines.push("", ENTRY_END);
   return lines.join("\n");
 }
+function formatLocation(finding) {
+  return finding.endLine && finding.endLine !== finding.line ? `${finding.path}:${finding.line}-${finding.endLine}` : `${finding.path}:${finding.line}`;
+}
+function formatDryRunFindings(posted, unposted) {
+  if (posted.length === 0 && unposted.length === 0) return "No findings.";
+  const section = (title, findings) => findings.length === 0 ? [] : [
+    `${title} (${findings.length}):`,
+    ...findings.flatMap((f) => [
+      "",
+      `[${f.severity}/${f.category}] ${formatLocation(f)}`,
+      f.message,
+      ...f.suggestion !== void 0 ? ["Suggested replacement:", f.suggestion] : []
+    ]),
+    ""
+  ];
+  return [
+    ...section("Would post inline", posted),
+    ...section("Summary only", unposted)
+  ].join("\n").trimEnd();
+}
+function formatDryRunSummary(summary2, notes) {
+  const lines = ["Model summary:", summary2.trim() === "" ? "(none)" : summary2.trim()];
+  if (notes.length > 0) {
+    lines.push("", `Notes (${notes.length}):`, ...notes.map((note) => `- ${note}`));
+  }
+  return lines.join("\n");
+}
 function formatJobSummary(params) {
   const allFindings = [...params.postedFindings, ...params.unpostedFindings];
   const lines = ["## AI Code Review", ""];
@@ -31824,7 +31854,7 @@ function sanitizeUrls(text) {
 function prepare(message) {
   return redact(sanitizeUrls(message));
 }
-var DEBUG_LOG_MAX_LENGTH = 2e3;
+var DEBUG_LOG_MAX_LENGTH = 2e4;
 function truncateForLog(text, maxLength = DEBUG_LOG_MAX_LENGTH) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\u2026(truncated)` : text;
 }
@@ -57152,6 +57182,24 @@ var AgentEngine = class {
       },
       runSignal: ctx.signal
     };
+    const executeToolCall = async (call) => {
+      if (call.argumentsError) {
+        return { content: `Invalid tool call arguments: ${call.argumentsError}`, isError: true };
+      }
+      const handler2 = registry2.handlers.get(call.name);
+      if (!handler2) {
+        return {
+          content: `Unknown tool "${call.name}". Available tools: ${[...registry2.handlers.keys(), "finish"].join(", ")}.`,
+          isError: true
+        };
+      }
+      try {
+        const result = await handler2(call.arguments, toolCtx);
+        return { content: result.content, isError: result.isError };
+      } catch (err) {
+        return { content: `Tool "${call.name}" failed: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+      }
+    };
     const messages = [{ role: "user", content: buildInitialUserMessage(ctx.pr, ctx.target) }];
     const budgetPricing = toPricing(config2.budget.pricing);
     const budgetTrackable = isBudgetTrackable(
@@ -57350,8 +57398,15 @@ var AgentEngine = class {
       }
       const finishCall = response.toolCalls.find((call) => call.name === "finish");
       if (finishCall) {
+        for (const call of response.toolCalls) {
+          if (call.name !== "post_comment") continue;
+          if (toolCallsMade >= config2.agent.max_tool_calls) break;
+          toolCallsMade++;
+          await executeToolCall(call);
+        }
         const args = finishCall.arguments ?? {};
         summary2 = typeof args.summary === "string" ? args.summary : "";
+        debugLog(config2.debug, `agent-engine: finish called \u2014 summary=${truncateForLog(summary2)}`);
         stopReason = "finished";
         break;
       }
@@ -57376,27 +57431,7 @@ var AgentEngine = class {
           break;
         }
         toolCallsMade++;
-        let content;
-        let isError;
-        if (call.argumentsError) {
-          content = `Invalid tool call arguments: ${call.argumentsError}`;
-          isError = true;
-        } else {
-          const handler2 = registry2.handlers.get(call.name);
-          if (!handler2) {
-            content = `Unknown tool "${call.name}". Available tools: ${[...registry2.handlers.keys(), "finish"].join(", ")}.`;
-            isError = true;
-          } else {
-            try {
-              const result = await handler2(call.arguments, toolCtx);
-              content = result.content;
-              isError = result.isError;
-            } catch (err) {
-              content = `Tool "${call.name}" failed: ${err instanceof Error ? err.message : String(err)}`;
-              isError = true;
-            }
-          }
-        }
+        const { content, isError } = await executeToolCall(call);
         debugLog(
           config2.debug,
           `agent-engine: tool "${call.name}" ${isError ? "returned an error" : "completed"} \u2014 arguments=${truncateForLog(JSON.stringify(call.arguments ?? {}))}, result=${truncateForLog(content)}`
@@ -57725,6 +57760,12 @@ async function publishAndBuildOutputs(input2) {
     summaryOnly: input2.config.review.summary_only
   });
   const unpostedForSummary = [...publishResult.unpostedFindings, ...overflow];
+  if (input2.config.dry_run) {
+    logger.group("dry-run: findings", () => {
+      logger.info(formatDryRunSummary(input2.reviewResult.summary, input2.reviewResult.notes));
+      logger.info(formatDryRunFindings(publishResult.postedFindings, unpostedForSummary));
+    });
+  }
   const dedupedSeverityMax = severityMax(deduped);
   const costEstimateUsd = resolveCostEstimateUsd(
     {

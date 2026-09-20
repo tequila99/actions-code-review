@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import {
   formatReviewEntry,
   formatJobSummary,
+  formatDryRunFindings,
+  formatDryRunSummary,
   escapeMarkdown,
   ENTRY_START,
   ENTRY_END
@@ -148,4 +150,53 @@ test('TI.6: a finding without a suggestion renders unchanged (no fence)', () => 
 
 test('escapeMarkdown escapes pipes, backslashes and newlines', () => {
   assert.equal(escapeMarkdown('a|b\\c\nd'), 'a\\|b\\\\c d')
+})
+
+test('TAA.1: formatDryRunFindings lists posted findings with severity, category, location and full message', () => {
+  const out = formatDryRunFindings(
+    [finding({ severity: 'high', category: 'security', path: 'src/x.ts', line: 7, endLine: 9, message: 'line one\nline two' })],
+    []
+  )
+  assert.match(out, /would post inline \(1\)/i)
+  assert.match(out, /\[high\/security\] src\/x\.ts:7-9/)
+  assert.ok(out.includes('line one\nline two'), 'message must be printed in full, not clipped')
+})
+
+test('TAA.2: formatDryRunFindings prints a single-line location when endLine is absent or equal to line', () => {
+  const out = formatDryRunFindings(
+    [finding({ line: 3 }), finding({ line: 4, endLine: 4, path: 'b.ts' })],
+    []
+  )
+  assert.match(out, /a\.ts:3\b(?!-)/)
+  assert.match(out, /b\.ts:4\b(?!-)/)
+})
+
+test('TAA.3: formatDryRunFindings separates unposted findings (summary-only) from posted ones', () => {
+  const out = formatDryRunFindings([finding({ message: 'inline one' })], [finding({ message: 'summary one' })])
+  assert.ok(out.indexOf('inline one') < out.indexOf('summary one'))
+  assert.match(out, /summary only \(1\)/i)
+})
+
+test('TAA.4: formatDryRunFindings says so when there are no findings at all', () => {
+  assert.match(formatDryRunFindings([], []), /no findings/i)
+})
+
+test('TAA.5: formatDryRunFindings shows the suggestion fence body when a finding carries one', () => {
+  const out = formatDryRunFindings([finding({ suggestion: 'const a = 1' })], [])
+  assert.ok(out.includes('const a = 1'))
+})
+
+test('TAC.1: formatDryRunSummary prints the model summary in full and lists every note', () => {
+  const out = formatDryRunSummary('Two regressions.\nBoth in utils.', ['iteration limit hit', 'file x skipped'])
+  assert.match(out, /^Model summary:/m)
+  assert.ok(out.includes('Two regressions.\nBoth in utils.'))
+  assert.match(out, /^Notes \(2\):/m)
+  assert.ok(out.includes('- iteration limit hit'))
+  assert.ok(out.includes('- file x skipped'))
+})
+
+test('TAC.2: formatDryRunSummary says so for an empty summary and omits the notes section when there are none', () => {
+  const out = formatDryRunSummary('', [])
+  assert.match(out, /Model summary:\s*\(none\)/)
+  assert.ok(!/Notes/.test(out))
 })

@@ -25,6 +25,30 @@ install` step — a stale `dist/` silently ships old code.
 `.github/workflows/check-dist.yml` enforces this in CI; never bypass it
 locally.
 
+## Branches and pull requests
+
+Work starts from an issue. Branch off `develop`:
+
+```
+feature/<issue>-<slug>   # new functionality
+fix/<issue>-<slug>       # bug fix
+chore/<issue>-<slug>     # tooling, docs, refactoring, dependencies
+```
+
+`<issue>` is the GitHub issue number, `<slug>` is lowercase letters, digits
+and hyphens (e.g. `chore/10-pr-template-branch-guard`).
+
+- PRs into `develop` must come from such a branch, with the title
+  `[#<issue>] <name>` (e.g. `[#10] Add PR template and branch guard`); the
+  number in the title must match the one in the branch name.
+- `main` only receives release PRs from this repository's `develop` (not a
+  fork's), titled with the version (`v1.2.3`). Nothing else may target `main`.
+- Dependabot PRs target `develop` and are exempt from the naming rules.
+
+`.github/workflows/branch-guard.yml` enforces all of the above; the PR
+template lives in `.github/PULL_REQUEST_TEMPLATE.md`. Commit messages inside
+a branch still follow the `type: subject` convention below.
+
 ## Test naming
 
 Tests follow the project's own scheme: `T<stage>.<n>` for the original
@@ -58,7 +82,22 @@ Short imperative subject, `type: subject` (`feat:`, `fix:`, `docs:`,
   (`src/config/schema.ts#findSecretKeyPath`); redact registered secrets
   before they reach a GitHub comment (`src/util/secrets.ts`).
 
+## Claude Code review
+
+Add the `claude-review` label to a PR (from a branch of this repository, not a
+fork) to get a review from Claude Code: inline comments plus a sticky summary,
+in Russian. It re-runs on every push while the label stays.
+`.github/workflows/claude-code-review.yml` needs the `ANTHROPIC_API_KEY`
+secret and the Claude GitHub App. `claude-code-action` only runs when this
+workflow file is identical on the default branch (`main`), so changing it takes
+effect for PRs only after the next `develop` -> `main` release.
+
 ## Releases
+
+Bump `version` in `package.json` (and `package-lock.json`, e.g. `npm version
+X.Y.Z --no-git-tag-version`) in a `chore/` PR before the release PR
+`develop` -> `main`, whose title is that version (`vX.Y.Z`).
+
 
 `v1` is a floating tag pointing at the latest `v1.x.y` release, per GitHub
 Actions convention (`uses: owner/repo@v1`). After tagging a new `v1.x.y`
