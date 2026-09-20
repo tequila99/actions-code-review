@@ -299,6 +299,27 @@ export class AgentEngine implements ReviewEngine {
       runSignal: ctx.signal
     }
 
+    /** Runs one tool call to completion; never throws — a failing tool becomes an error result
+     * the model can read. */
+    const executeToolCall = async (call: ToolCall): Promise<{ content: string; isError: boolean }> => {
+      if (call.argumentsError) {
+        return { content: `Invalid tool call arguments: ${call.argumentsError}`, isError: true }
+      }
+      const handler = registry.handlers.get(call.name)
+      if (!handler) {
+        return {
+          content: `Unknown tool "${call.name}". Available tools: ${[...registry.handlers.keys(), 'finish'].join(', ')}.`,
+          isError: true
+        }
+      }
+      try {
+        const result = await handler(call.arguments, toolCtx)
+        return { content: result.content, isError: result.isError }
+      } catch (err) {
+        return { content: `Tool "${call.name}" failed: ${err instanceof Error ? err.message : String(err)}`, isError: true }
+      }
+    }
+
     const messages: ChatMessage[] = [{ role: 'user', content: buildInitialUserMessage(ctx.pr, ctx.target) }]
 
     // T8.6 (THR-8/R-13): a hard mid-run cost cutoff, independent of `agent_token_budget`
@@ -544,6 +565,14 @@ export class AgentEngine implements ReviewEngine {
 
       const finishCall = response.toolCalls.find((call) => call.name === 'finish')
       if (finishCall) {
+        // A model may batch `post_comment` calls with `finish` in one response (seen with
+        // x-ai/grok-4.6); breaking straight away would drop those findings silently (#14).
+        for (const call of response.toolCalls) {
+          if (call.name !== 'post_comment') continue
+          if (toolCallsMade >= config.agent.max_tool_calls) break
+          toolCallsMade++
+          await executeToolCall(call)
+        }
         const args = (finishCall.arguments ?? {}) as Record<string, unknown>
         summary = typeof args.summary === 'string' ? args.summary : ''
         stopReason = 'finished'
@@ -574,27 +603,7 @@ export class AgentEngine implements ReviewEngine {
         }
         toolCallsMade++
 
-        let content: string
-        let isError: boolean
-        if (call.argumentsError) {
-          content = `Invalid tool call arguments: ${call.argumentsError}`
-          isError = true
-        } else {
-          const handler = registry.handlers.get(call.name)
-          if (!handler) {
-            content = `Unknown tool "${call.name}". Available tools: ${[...registry.handlers.keys(), 'finish'].join(', ')}.`
-            isError = true
-          } else {
-            try {
-              const result = await handler(call.arguments, toolCtx)
-              content = result.content
-              isError = result.isError
-            } catch (err) {
-              content = `Tool "${call.name}" failed: ${err instanceof Error ? err.message : String(err)}`
-              isError = true
-            }
-          }
-        }
+        const { content, isError } = await executeToolCall(call)
         debugLog(
           config.debug,
           `agent-engine: tool "${call.name}" ${isError ? 'returned an error' : 'completed'} — ` +
