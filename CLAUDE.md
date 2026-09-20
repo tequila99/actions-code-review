@@ -70,6 +70,13 @@ original per-stage plan (e.g. `T4.22`), lettered prefixes (`TA`, `TB`, ...)
 for each addendum/fix that came after, in commit order — grep the test
 files for the highest letter in use before picking the next one.
 
+## Branches and PRs
+
+Start from an issue, branch off `develop` as `feature|fix|chore/<issue>-<slug>`,
+open the PR into `develop` titled `[#<issue>] <name>`. `main` only takes
+release PRs from `develop` (title = `vX.Y.Z`). Details in `CONTRIBUTING.md`;
+`branch-guard.yml` enforces it. Dependabot PRs target `develop`.
+
 ## Conventions
 
 - Commit messages: short imperative subject, `type: subject` (`feat:`,

@@ -25,6 +25,30 @@ install` step — a stale `dist/` silently ships old code.
 `.github/workflows/check-dist.yml` enforces this in CI; never bypass it
 locally.
 
+## Branches and pull requests
+
+Work starts from an issue. Branch off `develop`:
+
+```
+feature/<issue>-<slug>   # new functionality
+fix/<issue>-<slug>       # bug fix
+chore/<issue>-<slug>     # tooling, docs, refactoring, dependencies
+```
+
+`<issue>` is the GitHub issue number, `<slug>` is lowercase letters, digits
+and hyphens (e.g. `chore/10-pr-template-branch-guard`).
+
+- PRs into `develop` must come from such a branch, with the title
+  `[#<issue>] <name>` (e.g. `[#10] Add PR template and branch guard`); the
+  number in the title must match the one in the branch name.
+- `main` only receives release PRs from this repository's `develop` (not a
+  fork's), titled with the version (`v1.2.3`). Nothing else may target `main`.
+- Dependabot PRs target `develop` and are exempt from the naming rules.
+
+`.github/workflows/branch-guard.yml` enforces all of the above; the PR
+template lives in `.github/PULL_REQUEST_TEMPLATE.md`. Commit messages inside
+a branch still follow the `type: subject` convention below.
+
 ## Test naming
 
 Tests follow the project's own scheme: `T<stage>.<n>` for the original
