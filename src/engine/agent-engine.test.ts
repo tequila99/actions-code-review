@@ -1450,3 +1450,26 @@ test('TAB.3: a batched finish still honours agent_max_tool_calls for the sibling
     assert.equal(result.findings.length, 2)
   })
 })
+
+test('TAC.5: config.debug: true logs the finish summary the model gave', async (t) => {
+  await withAgentEnv(async () => {
+    const info = t.mock.method(logger, 'info', () => {})
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({ toolCalls: [{ id: '1', name: 'finish', arguments: { summary: 'Nothing wrong: FINISH_MARKER' } }] })
+    )
+    await new AgentEngine().review(makeCtx(provider, { config: { debug: true } }))
+    const messages = info.mock.calls.map((c) => c.arguments[0] as string)
+    assert.ok(messages.some((m) => /finish/i.test(m) && m.includes('FINISH_MARKER')))
+  })
+})
+
+test('TAC.6: config.debug: false does not log the finish summary', async (t) => {
+  await withAgentEnv(async () => {
+    const info = t.mock.method(logger, 'info', () => {})
+    const provider = createFakeProvider(async () =>
+      makeCompletionResponse({ toolCalls: [{ id: '1', name: 'finish', arguments: { summary: 'FINISH_MARKER' } }] })
+    )
+    await new AgentEngine().review(makeCtx(provider))
+    assert.equal(info.mock.calls.length, 0)
+  })
+})

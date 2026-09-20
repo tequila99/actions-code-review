@@ -575,6 +575,7 @@ export class AgentEngine implements ReviewEngine {
         }
         const args = (finishCall.arguments ?? {}) as Record<string, unknown>
         summary = typeof args.summary === 'string' ? args.summary : ''
+        debugLog(config.debug, `agent-engine: finish called — summary=${truncateForLog(summary)}`)
         stopReason = 'finished'
         break
       }

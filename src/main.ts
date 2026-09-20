@@ -16,6 +16,7 @@ import {
   formatReviewEntry,
   formatJobSummary,
   formatDryRunFindings,
+  formatDryRunSummary,
   type FormatSummaryParams
 } from './report/format.ts'
 import { resolveCostEstimateUsd, estimateCost, isBudgetTrackable, toPricing } from './report/cost.ts'
@@ -351,6 +352,7 @@ export async function publishAndBuildOutputs (input: PublishPhaseInput): Promise
 
   if (input.config.dry_run) {
     logger.group('dry-run: findings', () => {
+      logger.info(formatDryRunSummary(input.reviewResult.summary, input.reviewResult.notes))
       logger.info(formatDryRunFindings(publishResult.postedFindings, unpostedForSummary))
     })
   }

@@ -185,6 +185,19 @@ export function formatDryRunFindings (posted: Finding[], unposted: Finding[]): s
 }
 
 /**
+ * The model's own `summary` and the engine's `notes` for a `dry_run` log (issue #15). The findings
+ * list alone can't tell "the model saw nothing wrong" from "the run was cut short" — the summary
+ * and notes can.
+ */
+export function formatDryRunSummary (summary: string, notes: readonly string[]): string {
+  const lines = ['Model summary:', summary.trim() === '' ? '(none)' : summary.trim()]
+  if (notes.length > 0) {
+    lines.push('', `Notes (${notes.length}):`, ...notes.map((note) => `- ${note}`))
+  }
+  return lines.join('\n')
+}
+
+/**
  * Builds the Job Summary markdown (FR-71, T5.44): a pipe-table of every
  * finding (posted + unposted) plus the same headline metrics.
  */

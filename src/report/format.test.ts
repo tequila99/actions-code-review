@@ -4,6 +4,7 @@ import {
   formatReviewEntry,
   formatJobSummary,
   formatDryRunFindings,
+  formatDryRunSummary,
   escapeMarkdown,
   ENTRY_START,
   ENTRY_END
@@ -183,4 +184,19 @@ test('TAA.4: formatDryRunFindings says so when there are no findings at all', ()
 test('TAA.5: formatDryRunFindings shows the suggestion fence body when a finding carries one', () => {
   const out = formatDryRunFindings([finding({ suggestion: 'const a = 1' })], [])
   assert.ok(out.includes('const a = 1'))
+})
+
+test('TAC.1: formatDryRunSummary prints the model summary in full and lists every note', () => {
+  const out = formatDryRunSummary('Two regressions.\nBoth in utils.', ['iteration limit hit', 'file x skipped'])
+  assert.match(out, /^Model summary:/m)
+  assert.ok(out.includes('Two regressions.\nBoth in utils.'))
+  assert.match(out, /^Notes \(2\):/m)
+  assert.ok(out.includes('- iteration limit hit'))
+  assert.ok(out.includes('- file x skipped'))
+})
+
+test('TAC.2: formatDryRunSummary says so for an empty summary and omits the notes section when there are none', () => {
+  const out = formatDryRunSummary('', [])
+  assert.match(out, /Model summary:\s*\(none\)/)
+  assert.ok(!/Notes/.test(out))
 })

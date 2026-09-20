@@ -31700,6 +31700,13 @@ function formatDryRunFindings(posted, unposted) {
     ...section("Summary only", unposted)
   ].join("\n").trimEnd();
 }
+function formatDryRunSummary(summary2, notes) {
+  const lines = ["Model summary:", summary2.trim() === "" ? "(none)" : summary2.trim()];
+  if (notes.length > 0) {
+    lines.push("", `Notes (${notes.length}):`, ...notes.map((note) => `- ${note}`));
+  }
+  return lines.join("\n");
+}
 function formatJobSummary(params) {
   const allFindings = [...params.postedFindings, ...params.unpostedFindings];
   const lines = ["## AI Code Review", ""];
@@ -52242,6 +52249,7 @@ var AgentEngine = class {
         }
         const args = finishCall.arguments ?? {};
         summary2 = typeof args.summary === "string" ? args.summary : "";
+        debugLog(config2.debug, `agent-engine: finish called \u2014 summary=${truncateForLog(summary2)}`);
         stopReason = "finished";
         break;
       }
@@ -52597,6 +52605,7 @@ async function publishAndBuildOutputs(input) {
   const unpostedForSummary = [...publishResult.unpostedFindings, ...overflow];
   if (input.config.dry_run) {
     logger.group("dry-run: findings", () => {
+      logger.info(formatDryRunSummary(input.reviewResult.summary, input.reviewResult.notes));
       logger.info(formatDryRunFindings(publishResult.postedFindings, unpostedForSummary));
     });
   }
