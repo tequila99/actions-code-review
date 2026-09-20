@@ -50,6 +50,7 @@ jobs:
           # Step Summary report of the run; unlike show_full_output it cannot leak secrets.
           display_report: true
           include_fix_links: false
+          show_full_output: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
