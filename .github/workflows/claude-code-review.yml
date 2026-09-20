@@ -35,13 +35,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          fetch-depth: 1
+          # Full history: the review diffs against origin/<base> with `git diff`,
+          # which (unlike `gh pr diff`) can leave the generated dist/ bundle out.
+          fetch-depth: 0
 
       - name: Claude review
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           use_sticky_comment: true
+          # Post inline comments immediately instead of buffering them until the
+          # session ends: a run cut short by --max-turns keeps what it found.
+          classify_inline_comments: false
+          # Step Summary report of the run; unlike show_full_output it cannot leak secrets.
+          display_report: true
+          include_fix_links: false
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -95,10 +103,20 @@ jobs:
             - Заголовок PR должен иметь вид `[#<issue>] <название>`, коммиты — вид
               `type: subject`
 
-            Оставляй inline-комментарии к конкретным строкам, где есть проблемы.
-            В конце оставь краткое summary с общей оценкой PR.
+            Дифф смотри так: `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD -- . ':(exclude)dist/index.js'`.
+            `gh pr diff` не подходит: он отдаёт и `dist/index.js` (сборка, тысячи строк
+            шума). Метаданные PR — `gh pr view`. Файлы читай инструментами Read/Grep/Glob.
+
+            Ты ограничен числом ходов, поэтому не исследуй бесконечно. Оставляй
+            inline-комментарий к конкретной строке сразу, как нашёл проблему, а не в
+            конце. Краткое summary с общей оценкой PR оставь, как только покрыл дифф, не
+            дожидаясь исчерпания ходов.
 
             Все комментарии — на русском языке.
+          # The default model is Opus with a 1M context (~1.20 USD for one review);
+          # Sonnet is enough here. Read-only tools are listed explicitly so the run
+          # doesn't burn turns on permission denials.
           claude_args: |-
-            --max-turns 30
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --model claude-sonnet-5
+            --max-turns 45
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
