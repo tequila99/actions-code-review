@@ -1,6 +1,6 @@
 {
   "name": "actions-code-review",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Provider-agnostic AI code review for GitHub pull requests. Any OpenAI-compatible endpoint, a token, and a model name.",
   "license": "MIT",
@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.6.1",
     "esbuild": "^0.28.2",
     "eslint": "^10.10.0",
     "typescript": "^6.0.3",
