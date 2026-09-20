@@ -52018,6 +52018,24 @@ var AgentEngine = class {
       },
       runSignal: ctx.signal
     };
+    const executeToolCall = async (call) => {
+      if (call.argumentsError) {
+        return { content: `Invalid tool call arguments: ${call.argumentsError}`, isError: true };
+      }
+      const handler2 = registry2.handlers.get(call.name);
+      if (!handler2) {
+        return {
+          content: `Unknown tool "${call.name}". Available tools: ${[...registry2.handlers.keys(), "finish"].join(", ")}.`,
+          isError: true
+        };
+      }
+      try {
+        const result = await handler2(call.arguments, toolCtx);
+        return { content: result.content, isError: result.isError };
+      } catch (err) {
+        return { content: `Tool "${call.name}" failed: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+      }
+    };
     const messages = [{ role: "user", content: buildInitialUserMessage(ctx.pr, ctx.target) }];
     const budgetPricing = toPricing(config2.budget.pricing);
     const budgetTrackable = isBudgetTrackable(
@@ -52216,6 +52234,12 @@ var AgentEngine = class {
       }
       const finishCall = response.toolCalls.find((call) => call.name === "finish");
       if (finishCall) {
+        for (const call of response.toolCalls) {
+          if (call.name !== "post_comment") continue;
+          if (toolCallsMade >= config2.agent.max_tool_calls) break;
+          toolCallsMade++;
+          await executeToolCall(call);
+        }
         const args = finishCall.arguments ?? {};
         summary2 = typeof args.summary === "string" ? args.summary : "";
         stopReason = "finished";
@@ -52242,27 +52266,7 @@ var AgentEngine = class {
           break;
         }
         toolCallsMade++;
-        let content;
-        let isError;
-        if (call.argumentsError) {
-          content = `Invalid tool call arguments: ${call.argumentsError}`;
-          isError = true;
-        } else {
-          const handler2 = registry2.handlers.get(call.name);
-          if (!handler2) {
-            content = `Unknown tool "${call.name}". Available tools: ${[...registry2.handlers.keys(), "finish"].join(", ")}.`;
-            isError = true;
-          } else {
-            try {
-              const result = await handler2(call.arguments, toolCtx);
-              content = result.content;
-              isError = result.isError;
-            } catch (err) {
-              content = `Tool "${call.name}" failed: ${err instanceof Error ? err.message : String(err)}`;
-              isError = true;
-            }
-          }
-        }
+        const { content, isError } = await executeToolCall(call);
         debugLog(
           config2.debug,
           `agent-engine: tool "${call.name}" ${isError ? "returned an error" : "completed"} \u2014 arguments=${truncateForLog(JSON.stringify(call.arguments ?? {}))}, result=${truncateForLog(content)}`
