@@ -19,9 +19,17 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
           HEAD: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
         run: |
           if [ "$BASE" = "main" ] && [ "$HEAD" != "develop" ]; then
             echo "::error::PRs into main are only allowed from develop (got: $HEAD)"
+            exit 1
+          fi
+
+          # A fork's own `develop` branch has the right name but is not ours.
+          if [ "$BASE" = "main" ] && [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "::error::PRs into main are only allowed from this repository's develop, not from a fork (got: $HEAD_REPO)"
             exit 1
           fi
 

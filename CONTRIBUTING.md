@@ -41,8 +41,8 @@ and hyphens (e.g. `chore/10-pr-template-branch-guard`).
 - PRs into `develop` must come from such a branch, with the title
   `[#<issue>] <name>` (e.g. `[#10] Add PR template and branch guard`); the
   number in the title must match the one in the branch name.
-- `main` only receives release PRs from `develop`, titled with the version
-  (`v1.2.3`). Nothing else may target `main`.
+- `main` only receives release PRs from this repository's `develop` (not a
+  fork's), titled with the version (`v1.2.3`). Nothing else may target `main`.
 - Dependabot PRs target `develop` and are exempt from the naming rules.
 
 `.github/workflows/branch-guard.yml` enforces all of the above; the PR
