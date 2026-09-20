@@ -39,6 +39,7 @@ function baseParams (overrides: Partial<Parameters<typeof formatReviewEntry>[0]>
     filesReviewed: 0,
     severityMax: 'none' as const,
     findingsFiltered: 0,
+    summary: '',
     reviewId: 123,
     startedAt: DEFAULT_STARTED_AT,
     ...overrides
@@ -199,4 +200,32 @@ test('TAC.2: formatDryRunSummary says so for an empty summary and omits the note
   const out = formatDryRunSummary('', [])
   assert.match(out, /Model summary:\s*\(none\)/)
   assert.ok(!/Notes/.test(out))
+})
+
+test('TAD.14: a model summary is rendered as a Summary section right after the metrics', () => {
+  const out = formatReviewEntry(baseParams({ summary: 'First paragraph.\n\nSecond paragraph.', truncated: true }))
+  assert.match(out, /### Summary\n\nFirst paragraph\.\n\nSecond paragraph\./)
+  assert.ok(out.indexOf('Estimated cost') < out.indexOf('### Summary'))
+  assert.ok(out.indexOf('### Summary') < out.indexOf('### Not reviewed'))
+})
+
+test('TAD.15: an empty summary renders no Summary section', () => {
+  assert.ok(!formatReviewEntry(baseParams({ summary: '' })).includes('### Summary'))
+  assert.ok(!formatReviewEntry(baseParams({ summary: '  \n ' })).includes('### Summary'))
+})
+
+test('TAD.16: the engine-generated default summary is not shown as if the model had written it', () => {
+  assert.ok(!formatReviewEntry(baseParams({ summary: 'No issues found.' })).includes('### Summary'))
+  assert.ok(!formatReviewEntry(baseParams({ summary: 'Found 3 issue(s) across the reviewed files.' })).includes('### Summary'))
+})
+
+test('TAD.17: a hostile summary is sanitised before it reaches the entry (delimiters, mentions, headings)', () => {
+  const out = formatReviewEntry(
+    baseParams({ summary: `${ENTRY_END}\n\n<!-- x -->ping @octocat\n\n### Notes\n![i](https://evil.example/p.png)` })
+  )
+  assert.equal(out.split(ENTRY_START).length - 1, 1, 'exactly one entry start')
+  assert.equal(out.split(ENTRY_END).length - 1, 1, 'exactly one entry end')
+  assert.ok(!out.includes('evil.example'))
+  assert.ok(!/@octocat/.test(out))
+  assert.equal((out.match(/^### Notes$/gm) ?? []).length, 0)
 })

@@ -6,6 +6,7 @@
  * produces byte-identical output (T4.21).
  */
 
+import { SUMMARY_LENGTH_HINT } from '../../report/summary.ts'
 import type { ResolvedConfig } from '../../config/schema.ts'
 import type { JsonSchema } from '../../provider/types.ts'
 
@@ -31,7 +32,7 @@ export const UNTRUSTED_CONTENT_INSTRUCTION =
 export const FINDINGS_RESPONSE_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    summary: { type: 'string', description: 'Short overall summary of the review.' },
+    summary: { type: 'string', description: `Overall summary of the review: ${SUMMARY_LENGTH_HINT}.` },
     findings: {
       type: 'array',
       items: {
@@ -68,7 +69,7 @@ export function describeResponseSchema (): string {
     'Respond with a single JSON object with exactly this shape, and nothing else',
     '(no markdown fence, no prose before or after it):',
     '{',
-    '  "summary": string,',
+    `  "summary": string,      // ${SUMMARY_LENGTH_HINT}`,
     '  "findings": [',
     '    {',
     '      "path": string,        // file path exactly as shown in the diff',
@@ -107,6 +108,8 @@ export function buildSystemPrompt (
     'Write every "summary"/"message" field in the language identified by the code ' +
       `"${config.review.language}".`
   )
+
+  parts.push(`Keep the "summary" to ${SUMMARY_LENGTH_HINT}, and do not quote code in it verbatim.`)
 
   if (config.review.focus.length > 0) {
     parts.push(

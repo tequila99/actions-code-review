@@ -18,8 +18,9 @@ PR.
 - Reviews a pull request's diff and posts findings as inline review
   comments (severity, category, message), plus one review-level summary.
 - Maintains a **sticky comment** with a capped history (last 20 entries) of
-  every run on the PR — mode, model, files/findings/tokens/cost — instead
-  of overwriting itself each time, so you can compare multiple runs
+  every run on the PR — mode, model, files/findings/tokens/cost and the
+  model's own summary of the change (sanitised, capped at 3000 chars) —
+  instead of overwriting itself each time, so you can compare multiple runs
   (different models, incremental re-reviews) at a glance.
 - Deduplicates findings against comments already posted on the PR, so
   re-running on a PR (e.g. after new commits) doesn't repeat itself.

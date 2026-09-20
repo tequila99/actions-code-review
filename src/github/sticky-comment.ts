@@ -165,6 +165,8 @@ function charBudgetTrimNote (language: string): string {
  * first place `trimEntryToBudget` cuts into when even a single entry alone
  * doesn't fit `GITHUB_COMMENT_MAX_CHARS`.
  */
+const SUMMARY_SECTION_PATTERN =
+  /\n\n### Summary\n[\s\S]*?(?=\n\n### |\n\n<!-- \/actions-code-review:entry -->|$)/
 const FINDINGS_SECTION_PATTERN =
   /\n\n### Findings not posted inline\n[\s\S]*?(?=\n\n### |\n\n<!-- \/actions-code-review:entry -->|$)/
 const NOTES_SECTION_PATTERN =
@@ -184,7 +186,11 @@ function trimEntryToBudget (entry: string, budget: number, language: string): st
   if (entry.length <= budget) return entry
 
   const note = charBudgetTrimNote(language)
-  let trimmed = entry.replace(FINDINGS_SECTION_PATTERN, note)
+  // The summary goes first: free prose is the most expendable part, findings/notes are the review.
+  let trimmed = entry.replace(SUMMARY_SECTION_PATTERN, note)
+  if (trimmed.length <= budget) return trimmed
+
+  trimmed = trimmed.replace(FINDINGS_SECTION_PATTERN, note)
   if (trimmed.length <= budget) return trimmed
 
   trimmed = trimmed.replace(NOTES_SECTION_PATTERN, note)

@@ -772,6 +772,7 @@ test("TC.9: existing sticky comment with 1 history entry -> after a new run, iss
     postedFindings: [],
     unpostedFindings: [],
     notes: [],
+    summary: '',
     truncated: false,
     skippedFiles: [],
     tokensInput: 10,

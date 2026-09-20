@@ -5,6 +5,7 @@
  * included unconditionally here rather than filtered to a batch's files.
  */
 
+import { SUMMARY_LENGTH_HINT } from '../../report/summary.ts'
 import type { ResolvedConfig } from '../../config/schema.ts'
 import type { ToolSpec } from '../../provider/types.ts'
 import { UNTRUSTED_CONTENT_INSTRUCTION } from './system.ts'
@@ -48,6 +49,10 @@ export function buildAgentSystemPrompt (config: ResolvedConfig, tools: readonly 
   parts.push(
     'Write every "message"/"summary" field in the language identified by the code ' +
       `"${config.review.language}".`
+  )
+
+  parts.push(
+    `When you call finish, keep its "summary" to ${SUMMARY_LENGTH_HINT}, and do not quote code in it verbatim.`
   )
 
   parts.push(

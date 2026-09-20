@@ -21,6 +21,8 @@
 import type { SkippedFile } from '../github/diff-parse.ts'
 import type { Finding } from '../engine/types.ts'
 import type { SeverityMax } from './severity.ts'
+import { isDefaultSummary } from './findings.ts'
+import { sanitizeSummary } from './summary.ts'
 
 /** Escapes markdown table-breaking characters (T5.45): pipes and raw newlines. */
 export function escapeMarkdown (text: string): string {
@@ -42,6 +44,8 @@ export interface FormatSummaryParams {
   /** Findings only described in text: invalid position, summary_only, overflow, or 422 fallback. */
   unpostedFindings: readonly Finding[]
   notes: readonly string[]
+  /** The model's own summary of the review. Untrusted — sanitised in `formatReviewEntry`. */
+  summary: string
   truncated: boolean
   skippedFiles: readonly SkippedFile[]
   tokensInput: number
@@ -115,6 +119,13 @@ export function formatReviewEntry (params: FormatReviewEntryParams): string {
   // don't have `agent.filter_model` configured at all, so an always-"0" line would just be noise.
   if (params.findingsFiltered > 0) {
     lines.push(`- **Findings filtered (noise):** ${params.findingsFiltered}`)
+  }
+
+  // Engine-generated placeholders ("No issues found.") duplicate the metrics above, so only text
+  // the model actually wrote is shown. Untrusted: sanitised before it reaches the comment.
+  const summary = isDefaultSummary(params.summary.trim()) ? '' : sanitizeSummary(params.summary)
+  if (summary !== '') {
+    lines.push('', '### Summary', '', summary)
   }
 
   if (params.truncated) {

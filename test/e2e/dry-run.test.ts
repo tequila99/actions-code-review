@@ -83,7 +83,7 @@ test('T6.15: dry_run — zero mutating calls, outputs still filled', async (t) =
 // TAA.6/TAA.7 (issue #12): a dry run publishes nothing, so the log is the
 // only place the findings can be read from — a real run must not duplicate
 // them there (they are already on the PR).
-async function runWithOneFinding (t: Parameters<typeof captureStdoutWrites>[0], dryRun: boolean): Promise<string> {
+async function runWithOneFinding (t: Parameters<typeof captureStdoutWrites>[0], dryRun: boolean): Promise<{ log: string; octokit: ReturnType<typeof createOctokitMock> }> {
   const originalExitCode = process.exitCode
   t.after(() => {
     process.exitCode = originalExitCode
@@ -117,26 +117,32 @@ async function runWithOneFinding (t: Parameters<typeof captureStdoutWrites>[0], 
     )
   )
   await withEnvAsync({ GITHUB_EVENT_NAME: 'pull_request' }, () => run())
-  return writes.join('')
+  return { log: writes.join(''), octokit }
 }
 
 test('TAA.6: dry_run — findings are printed to the log', async (t) => {
-  const log = await runWithOneFinding(t, true)
+  const { log } = await runWithOneFinding(t, true)
   assert.ok(log.includes('DRYRUN_MARKER_NIT'), 'dry-run log must contain the finding message')
   assert.match(log, /::group::dry-run: findings/)
 })
 
 test('TAA.7: real run — the dry-run findings block is not printed', async (t) => {
-  const log = await runWithOneFinding(t, false)
+  const { log } = await runWithOneFinding(t, false)
   assert.ok(!log.includes('dry-run: findings'))
 })
 
 test('TAC.3: dry_run — the model summary is printed to the log', async (t) => {
-  const log = await runWithOneFinding(t, true)
+  const { log } = await runWithOneFinding(t, true)
   assert.match(log, /Model summary:\s*One issue\./)
 })
 
 test('TAC.4: real run — the model summary is not dumped to the log', async (t) => {
-  const log = await runWithOneFinding(t, false)
+  const { log } = await runWithOneFinding(t, false)
   assert.ok(!log.includes('Model summary:'))
+})
+
+test('TAD.22: real run — the model summary lands in the sticky comment, sanitised', async (t) => {
+  const { octokit } = await runWithOneFinding(t, false)
+  const body = (octokit.rest.issues.createComment.mock.calls[0]!.arguments[0] as { body: string }).body
+  assert.match(body, /### Summary\n\nOne issue\./)
 })

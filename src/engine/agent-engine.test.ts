@@ -1473,3 +1473,16 @@ test('TAC.6: config.debug: false does not log the finish summary', async (t) => 
     assert.equal(info.mock.calls.length, 0)
   })
 })
+
+test('TAD.21: the finish tool description asks for a 2-3 paragraph summary', async () => {
+  await withAgentEnv(async () => {
+    let capturedRequest: CompletionRequest | undefined
+    const provider = createFakeProvider(async (req) => {
+      capturedRequest = req
+      return makeCompletionResponse({ toolCalls: [{ id: '1', name: 'finish', arguments: { summary: 'ok' } }] })
+    })
+    await new AgentEngine().review(makeCtx(provider))
+    const finish = capturedRequest!.tools!.find((t) => t.name === 'finish')!
+    assert.match(finish.description, /2-3 short paragraphs/)
+  })
+})

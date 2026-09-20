@@ -23,6 +23,11 @@ export function defaultSummary (findings: readonly Finding[]): string {
   return `Found ${findings.length} issue(s) across the reviewed files.`
 }
 
+/** True for text `defaultSummary` can produce — an engine-generated placeholder, not the model's own words. */
+export function isDefaultSummary (text: string): boolean {
+  return text === defaultSummary([]) || /^Found \d+ issue\(s\) across the reviewed files\.$/.test(text)
+}
+
 /**
  * Validates and normalizes one raw finding object against `validPaths` (the
  * set of file paths that were actually part of the batch sent to the model —

@@ -8,6 +8,7 @@
  */
 
 import { logger, debugLog, truncateForLog } from '../util/logger.ts'
+import { SUMMARY_LENGTH_HINT } from '../report/summary.ts'
 import { estimateCost, isBudgetTrackable, toPricing } from '../report/cost.ts'
 import { defaultSummary } from '../report/findings.ts'
 import { filterNoise } from './noise-filter.ts'
@@ -28,7 +29,7 @@ import type { DiffFile } from '../github/diff-parse.ts'
 
 const FINISH_SPEC: ToolSpec = {
   name: 'finish',
-  description: 'Call this when the review is complete, with a short overall summary.',
+  description: `Call this when the review is complete, with an overall summary: ${SUMMARY_LENGTH_HINT}.`,
   parameters: {
     type: 'object',
     properties: { summary: { type: 'string' } },
