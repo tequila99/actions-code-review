@@ -94,6 +94,11 @@ effect for PRs only after the next `develop` -> `main` release.
 
 ## Releases
 
+Bump `version` in `package.json` (and `package-lock.json`, e.g. `npm version
+X.Y.Z --no-git-tag-version`) in a `chore/` PR before the release PR
+`develop` -> `main`, whose title is that version (`vX.Y.Z`).
+
+
 `v1` is a floating tag pointing at the latest `v1.x.y` release, per GitHub
 Actions convention (`uses: owner/repo@v1`). After tagging a new `v1.x.y`
 release, move the floating `v1` tag to point at it.
