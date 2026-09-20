@@ -34,8 +34,9 @@ PR.
   and reports anything it had to skip (`truncated`, `notes`) rather than
   silently dropping it.
 - `dry_run: true` runs the full pipeline (including cost/token accounting)
-  without publishing anything; the findings it would have posted are
-  printed to the step log (group `dry-run: findings`).
+  without publishing anything; the model's summary, the engine's notes and the
+  findings it would have posted are printed to the step log (group
+  `dry-run: findings`).
 
 ## Quick start
 
@@ -296,7 +297,7 @@ The inputs worth knowing about first:
 | `mode`                        | `diff` (default) or `agent` — see [Agent mode](#agent-mode). `auto` is planned.                                          |
 | `config_path`                 | Where to look for the repo-level config file (default `.github/code-review.yml`).                                        |
 | `fail_on_severity`            | `none \| medium \| high` — fail the job when findings at/above this severity are found, _after_ the review is published. |
-| `dry_run`                     | Run the full review, publish nothing. Findings are printed to the step log instead.                                      |
+| `dry_run`                     | Run the full review, publish nothing. Summary, notes and findings are printed to the step log.                           |
 | `incremental`                 | Only review new commits since the last review, when possible (default `true`).                                           |
 
 Every output is always set, even on an early exit (draft PR, skip label,

@@ -130,3 +130,13 @@ test('TAA.7: real run — the dry-run findings block is not printed', async (t) 
   const log = await runWithOneFinding(t, false)
   assert.ok(!log.includes('dry-run: findings'))
 })
+
+test('TAC.3: dry_run — the model summary is printed to the log', async (t) => {
+  const log = await runWithOneFinding(t, true)
+  assert.match(log, /Model summary:\s*One issue\./)
+})
+
+test('TAC.4: real run — the model summary is not dumped to the log', async (t) => {
+  const log = await runWithOneFinding(t, false)
+  assert.ok(!log.includes('Model summary:'))
+})
