@@ -86,7 +86,10 @@ Short imperative subject, `type: subject` (`feat:`, `fix:`, `docs:`,
 
 Add the `claude-review` label to a PR (from a branch of this repository, not a
 fork) to get a review from Claude Code: inline comments plus a sticky summary,
-in Russian. It re-runs on every push while the label stays.
+in Russian. It re-runs on every push while the label stays. It runs on Sonnet
+(the action's default, Opus with a 1M context, cost ~1.20 USD per review), diffs
+with `git diff` so the generated `dist/` bundle is left out, and posts inline
+comments as it goes, so a run cut short by `--max-turns` keeps its findings.
 `.github/workflows/claude-code-review.yml` needs the `ANTHROPIC_API_KEY`
 secret and the Claude GitHub App. `claude-code-action` only runs when this
 workflow file is identical on the default branch (`main`), so changing it takes
