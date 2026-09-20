@@ -33,7 +33,7 @@
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
     "minimatch": "^10.2.6",
-    "yaml": "^2.9.0",
+    "yaml": "^2.9.1",
     "zod": "^4.6.5"
   }
 }
